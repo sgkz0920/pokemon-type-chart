@@ -1,9 +1,11 @@
 /*
 作成日: 2026-07-04
 処理名称: ポケモンデータ生成スクリプト
-処理概要: PokeAPIのGraphQLエンドポイントから全ポケモン種の日本語名（ja-Hrkt）と
-          基本フォルム（is_default）のタイプを一括取得し、data/pokemon.json を
-          生成する。新世代のポケモン追加時に再実行して更新する。
+処理概要: PokeAPIのGraphQLエンドポイントから全ポケモン種の日本語名（ja-Hrkt）、
+          基本フォルム（is_default）のタイプ、および特性（通常＋隠れ）を一括取得し、
+          data/pokemon.json を生成する。特性はタイプ相性に影響するもののみ
+          abilities.json のIDへ変換し、影響しないものはID 0（特性なし）に集約する。
+          新世代のポケモン追加時に再実行して更新する。
           実行方法: node scripts/generate-pokemon-json.mjs
 ファイル名: generate-pokemon-json.mjs
 */
@@ -23,21 +25,25 @@ const TYPE_ID = {
   rock: 12, ghost: 13, dragon: 14, dark: 15, steel: 16, fairy: 17,
 };
 
-// 各ポケモン（図鑑No）の通常特性。表記法: "図鑑No: [特性ID, ...]"
-// PokeAPI v2 から手動抽出（全1025種）。将来的には automated で更新可能。
-const POKEMON_ABILITIES = {
-  1: [0],      // フシギダネ: しんりょく
-  2: [0],      // フシギソウ: しんりょく
-  3: [0],      // フシギバナ: しんりょく
-  4: [1],      // ヒトカゲ: もうか
-  5: [1],      // リザード: もうか
-  6: [1, 3],   // リザードン: もうか, サンパワー
-  7: [5],      // ゼニガメ: ちょすい
-  8: [5],      // カメックス: ちょすい
-  9: [5],      // フリーザー: ちょすい (待遇)
-  10: [5],     // イーブイ候補A
-  25: [7],     // ピカチュウ: ちくでん
-  26: [7],     // ライチュウ: ちくでん
+// PokeAPIの特性名（英語）→ data/abilities.json の配列インデックス。
+// ここに載っていない特性はタイプ相性に影響しないため、ID 0（特性なし）に集約する。
+const ABILITY_ID = {
+  levitate: 1,
+  "thick-fat": 2,
+  "flash-fire": 3,
+  "well-baked-body": 4,
+  "water-absorb": 5,
+  "storm-drain": 6,
+  "volt-absorb": 7,
+  "lightning-rod": 8,
+  "motor-drive": 9,
+  "sap-sipper": 10,
+  "dry-skin": 11,
+  fluffy: 12,
+  filter: 13,
+  "solid-rock": 14,
+  "prism-armor": 15,
+  "wonder-guard": 16,
 };
 
 // language_id 1 = ja-Hrkt（日本語・かなカナ表記）
@@ -48,6 +54,7 @@ const QUERY = `query {
     pokemons(where: {is_default: {_eq: true}}) {
       id
       types: pokemontypes(order_by: {slot: asc}) { type { name } }
+      abilities: pokemonabilities(order_by: {slot: asc}) { ability { name } }
     }
   }
 }`;
@@ -64,15 +71,19 @@ if (errors) throw new Error(`GraphQLエラー: ${JSON.stringify(errors)}`);
 const pokemon = data.species.map((s) => {
   const name = s.names[0]?.name;
   const types = s.pokemons[0]?.types.map((t) => TYPE_ID[t.type.name]);
-  // TODO: PokeAPI v2 から全1025種の特性を取得し、POKEMON_ABILITIES を完成させる
-  // 当面はデータベースとして使用可能な特性情報のみを持つ
-  const abilityIds = POKEMON_ABILITIES[s.id] || [];
+  // 相性に影響する特性のみIDへ変換し、それ以外は0に集約（重複除去・昇順）
+  const rawAbilities = s.pokemons[0]?.abilities ?? [];
+  const abilityIds = [...new Set(
+    rawAbilities.map((a) => ABILITY_ID[a.ability.name] ?? 0)
+  )].sort((a, b) => a - b);
 
   if (!name) throw new Error(`日本語名が取得できません: 図鑑No ${s.id}`);
   if (!types || types.length < 1 || types.length > 2 || types.some((t) => t === undefined)) {
     throw new Error(`タイプが不正です: 図鑑No ${s.id} (${name})`);
   }
-  // 特性情報がない場合は空配列（将来的に対応）
+  if (abilityIds.length < 1 || abilityIds.length > 3) {
+    throw new Error(`特性が不正です: 図鑑No ${s.id} (${name})`);
+  }
   return { no: s.id, name, types, abilityIds };
 });
 
@@ -85,7 +96,8 @@ const json = {
     createdAt: "2026-07-04",
     name: "ポケモンデータ（全国図鑑・基本フォルム）",
     description:
-      "全ポケモン種の日本語名と基本フォルムのタイプ。types はtypes.jsonのタイプID。" +
+      "全ポケモン種の日本語名と基本フォルムのタイプ・特性。types はtypes.jsonのタイプID。" +
+      "abilityIds はabilities.jsonのインデックス（相性に影響しない特性は0に集約、隠れ特性含む）。" +
       "PokeAPIから scripts/generate-pokemon-json.mjs で生成。リージョンフォーム等は対象外。",
     fileName: "pokemon.json",
     source: "https://pokeapi.co/",
