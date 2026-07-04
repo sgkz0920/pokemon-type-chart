@@ -168,41 +168,28 @@ function selectPokemon(p) {
 }
 
 // 特性セレクトを動的に更新（F-20〜F-22）
-// abilityIds: 表示対象とする特性ID配列。空配列の場合は全特性に復帰
+// abilityIds: 表示対象とする特性IDの配列（abilities.jsonのインデックス）。
+//   ポケモン選択時はそのポケモンのabilityIds（相性に無関係な特性は0に集約済み、
+//   常に1要素以上）を渡す。空配列は「全特性に復帰」を意味する。
 function updateAbilityOptions(abilityIds) {
-  const allAbilities = data.abilities;
-  const isRestricted = abilityIds.length > 0; // ポケモン選択状態か
+  const shown = abilityIds.length > 0
+    ? abilityIds.map((id) => data.abilities[id]) // ポケモン選択時: 持ちうる特性のみ
+    : data.abilities;                            // タイプ選択・クリア時: 全特性
 
-  if (isRestricted) {
-    // ポケモン選択時: そのポケモンが持つ特性のみ表示
-    abilitySelect.innerHTML = "";
-    for (const id of abilityIds) {
-      const ability = allAbilities[id];
-      const opt = document.createElement("option");
-      opt.value = ability.id;
-      opt.textContent = ability.name;
-      abilitySelect.appendChild(opt);
-    }
-    // 1つのみの場合、それを選択状態に（特性なしは表示しない）
-    if (abilityIds.length === 1) {
-      selectedAbilityId = allAbilities[abilityIds[0]].id;
-      abilitySelect.value = selectedAbilityId;
-    } else {
-      // 2つの場合、最初の1つを選択
-      selectedAbilityId = allAbilities[abilityIds[0]].id;
-      abilitySelect.value = selectedAbilityId;
-    }
-  } else {
-    // タイプ選択状態: 全特性から選択可能（初期化と同じ）
-    abilitySelect.innerHTML = "";
-    for (const ability of allAbilities) {
-      const opt = document.createElement("option");
-      opt.value = ability.id;
-      opt.textContent = ability.name;
-      abilitySelect.appendChild(opt);
-    }
-    abilitySelect.value = selectedAbilityId;
+  abilitySelect.innerHTML = "";
+  for (const ability of shown) {
+    const opt = document.createElement("option");
+    opt.value = ability.id;
+    opt.textContent = ability.name;
+    abilitySelect.appendChild(opt);
   }
+
+  if (abilityIds.length > 0) {
+    // 先頭を既定選択にする。昇順のため「特性なし」を持ちうる場合はそれが既定になり、
+    // 1つのみ（例: ふゆう固定のロトム）の場合はその特性で固定される（F-21）
+    selectedAbilityId = shown[0].id;
+  }
+  abilitySelect.value = selectedAbilityId;
 }
 
 // 選択クリア（F-05）: タイプと特性をリセットし、ページ最上部へスクロール（S3・F-15）
