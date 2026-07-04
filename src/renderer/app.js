@@ -12,6 +12,7 @@ import {
   groupByMultiplier,
   groupLabel,
   groupColor,
+  searchPokemon,
 } from "./logic.js";
 
 /* ================= データ読込 ================= */
@@ -19,20 +20,23 @@ import {
 // Electron（preloadのpokeApi）とブラウザ（fetch）の両対応
 async function loadData() {
   if (window.pokeApi) return window.pokeApi.getData();
-  const [typesRes, abilitiesRes] = await Promise.all([
+  const [typesRes, abilitiesRes, pokemonRes] = await Promise.all([
     fetch("../../data/types.json"),
     fetch("../../data/abilities.json"),
+    fetch("../../data/pokemon.json"),
   ]);
   const { types, chart } = await typesRes.json();
   const { abilities } = await abilitiesRes.json();
-  return { types, chart, abilities };
+  const { pokemon } = await pokemonRes.json();
+  return { types, chart, abilities, pokemon };
 }
 
 /* ================= 状態管理 ================= */
 
-let data = null;                  // { types, chart, abilities }
+let data = null;                  // { types, chart, abilities, pokemon }
 let selectedTypes = [];           // 選択中の防御タイプID（選択順を保持、長さ0〜2）
 let selectedAbilityId = "none";   // 選択中の特性ID（常に1件）
+let selectedPokemonNo = null;     // 検索候補から選択したポケモンの図鑑No（未選択はnull）
 
 const THEME_KEY = "pokemon-type-chart-theme";
 
@@ -41,6 +45,12 @@ const THEME_KEY = "pokemon-type-chart-theme";
 const typePanel = document.getElementById("type-panel");
 const statusPanel = document.getElementById("status-panel");
 const typeGrid = document.getElementById("type-grid");
+const tabType = document.getElementById("tab-type");
+const tabPokemon = document.getElementById("tab-pokemon");
+const typeTabBody = document.getElementById("type-tab-body");
+const pokemonTabBody = document.getElementById("pokemon-tab-body");
+const pokemonSearch = document.getElementById("pokemon-search");
+const pokemonResults = document.getElementById("pokemon-results");
 const statusSlots = document.getElementById("status-slots");
 const resultBody = document.getElementById("result-body");
 const clearBtn = document.getElementById("clear-btn");
@@ -117,6 +127,7 @@ function scrollToPanelIfNeeded(panel) {
 //   選択中タイプ（選択数2）→ 解除
 //   選択中タイプ（選択数1）→ 単タイプ確定として扱い、ステータスへスクロール（S2）
 function toggleType(typeId) {
+  selectedPokemonNo = null; // 手動でタイプを変更したらポケモン選択は解除
   const index = selectedTypes.indexOf(typeId);
   if (index !== -1) {
     if (selectedTypes.length === 1) {
@@ -133,12 +144,34 @@ function toggleType(typeId) {
   if (selectedTypes.length === 2) scrollToPanelIfNeeded(statusPanel);
 }
 
+// タブ切替（F-17）: 表示を入れ替えるだけで、選択状態には影響しない
+function switchTab(tab) {
+  const isType = tab === "type";
+  tabType.classList.toggle("active", isType);
+  tabPokemon.classList.toggle("active", !isType);
+  tabType.setAttribute("aria-selected", String(isType));
+  tabPokemon.setAttribute("aria-selected", String(!isType));
+  typeTabBody.hidden = !isType;
+  pokemonTabBody.hidden = isType;
+  if (!isType) pokemonSearch.focus();
+}
+
+// 検索候補の選択（F-16）: ポケモンのタイプを防御側タイプに設定（既存選択は置換）
+function selectPokemon(p) {
+  selectedPokemonNo = p.no;
+  selectedTypes = [...p.types];
+  renderAll();
+  scrollToPanelIfNeeded(statusPanel);
+}
+
 // 選択クリア（F-05）: タイプと特性をリセットし、ページ最上部へスクロール（S3・F-15）
 // タイプ選択エリアの先頭ではなく最上部まで戻すことで、ヘッダーの分だけ
 // 「選択中のタイプ」エリアが画面外に出て、再選択時のスクロールが確実に発火する
 function clearSelection() {
   selectedTypes = [];
   selectedAbilityId = "none";
+  selectedPokemonNo = null;
+  pokemonSearch.value = "";
   renderAll();
   if (window.scrollY > 0) {
     pendingScrollPanel = typePanel; // 割り込み判定用（最上部＝タイプ選択エリア扱い）
@@ -176,6 +209,59 @@ function buildAbilitySelect() {
   });
 }
 
+// タイプバッジ要素の生成（候補リスト・結果表示で共用）
+function makeTypeBadge(type) {
+  const badge = document.createElement("span");
+  badge.className = "type-badge";
+  badge.textContent = type.name;
+  badge.style.background = type.color;
+  badge.style.color = type.darkText ? "#2b3240" : "#ffffff";
+  return badge;
+}
+
+// ポケモン検索候補の表示（F-16）
+function renderPokemonResults() {
+  pokemonResults.innerHTML = "";
+  const query = pokemonSearch.value;
+  if (query.trim() === "") return;
+
+  const { hits, overflow } = searchPokemon(data.pokemon, query);
+  if (hits.length === 0) {
+    const note = document.createElement("p");
+    note.className = "pokemon-note";
+    note.textContent = "見つかりません";
+    pokemonResults.appendChild(note);
+    return;
+  }
+  for (const p of hits) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "pokemon-item";
+    item.classList.toggle("selected", p.no === selectedPokemonNo);
+
+    const no = document.createElement("span");
+    no.className = "pokemon-no";
+    no.textContent = `No.${p.no}`;
+    item.appendChild(no);
+
+    const name = document.createElement("span");
+    name.className = "pokemon-name";
+    name.textContent = p.name;
+    item.appendChild(name);
+
+    for (const typeId of p.types) item.appendChild(makeTypeBadge(data.types[typeId]));
+
+    item.addEventListener("click", () => selectPokemon(p));
+    pokemonResults.appendChild(item);
+  }
+  if (overflow) {
+    const note = document.createElement("p");
+    note.className = "pokemon-note";
+    note.textContent = "候補が多いため先頭20件のみ表示しています。名前を続けて入力してください";
+    pokemonResults.appendChild(note);
+  }
+}
+
 // ボタンの選択状態を反映
 function renderTypePanel() {
   for (const btn of typeGrid.children) {
@@ -210,7 +296,10 @@ function renderStatus() {
     }
     statusSlots.appendChild(el);
   }
-  clearBtn.disabled = selectedTypes.length === 0 && selectedAbilityId === "none";
+  clearBtn.disabled =
+    selectedTypes.length === 0 &&
+    selectedAbilityId === "none" &&
+    pokemonSearch.value === "";
 
   // 特性セレクトと効果説明の反映
   abilitySelect.value = selectedAbilityId;
@@ -245,15 +334,7 @@ function renderResult() {
 
     const list = document.createElement("div");
     list.className = "badge-list";
-    for (const id of ids) {
-      const type = data.types[id];
-      const badge = document.createElement("span");
-      badge.className = "type-badge";
-      badge.textContent = type.name;
-      badge.style.background = type.color;
-      badge.style.color = type.darkText ? "#2b3240" : "#ffffff";
-      list.appendChild(badge);
-    }
+    for (const id of ids) list.appendChild(makeTypeBadge(data.types[id]));
     groupEl.appendChild(list);
     resultBody.appendChild(groupEl);
   }
@@ -262,6 +343,7 @@ function renderResult() {
 // 一括再描画
 function renderAll() {
   renderTypePanel();
+  renderPokemonResults();
   renderStatus();
   renderResult();
 }
@@ -272,6 +354,9 @@ async function init() {
   applyTheme(document.documentElement.dataset.theme || "light");
   themeToggle.addEventListener("click", toggleTheme);
   clearBtn.addEventListener("click", clearSelection);
+  tabType.addEventListener("click", () => switchTab("type"));
+  tabPokemon.addEventListener("click", () => switchTab("pokemon"));
+  pokemonSearch.addEventListener("input", renderAll);
 
   // iOS Safariはviewport metaのuser-scalable=noを無視するため、
   // ピンチズーム（gestureイベント）を直接抑止する（F-12）

@@ -15,13 +15,15 @@ const appRoot = path.join(__dirname, "..", "..");
 
 // data/ 配下のJSONを読み込み、レンダラーへ渡す1オブジェクトに統合する
 async function loadData() {
-  const [typesJson, abilitiesJson] = await Promise.all([
+  const [typesJson, abilitiesJson, pokemonJson] = await Promise.all([
     readFile(path.join(appRoot, "data", "types.json"), "utf-8"),
     readFile(path.join(appRoot, "data", "abilities.json"), "utf-8"),
+    readFile(path.join(appRoot, "data", "pokemon.json"), "utf-8"),
   ]);
   const { types, chart } = JSON.parse(typesJson);
   const { abilities } = JSON.parse(abilitiesJson);
-  return { types, chart, abilities };
+  const { pokemon } = JSON.parse(pokemonJson);
+  return { types, chart, abilities, pokemon };
 }
 
 function createWindow() {

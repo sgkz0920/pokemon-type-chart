@@ -38,8 +38,19 @@
   </header>
 
   <section id="type-panel">
-    <h2>防御側タイプを選択（最大2つ）</h2>
-    <div id="type-grid"></div>
+    <div id="select-tabs" role="tablist">
+      <button id="tab-type" class="tab-btn active" type="button" role="tab" aria-selected="true">タイプで選択</button>
+      <button id="tab-pokemon" class="tab-btn" type="button" role="tab" aria-selected="false">ポケモン名で検索</button>
+    </div>
+    <div id="type-tab-body" role="tabpanel">
+      <h2>防御側タイプを選択（最大2つ）</h2>
+      <div id="type-grid"></div>
+    </div>
+    <div id="pokemon-tab-body" role="tabpanel" hidden>
+      <h2>ポケモン名で検索（ひらがな可）</h2>
+      <input id="pokemon-search" type="search" placeholder="例: りざーどん" autocomplete="off">
+      <div id="pokemon-results"></div>
+    </div>
   </section>
 
   <section id="status-panel">

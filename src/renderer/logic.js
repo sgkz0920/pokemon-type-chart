@@ -56,6 +56,29 @@ export function groupLabel(value) {
   return `${formatMultiplier(value)}（いまひとつ）`;
 }
 
+// ひらがな→カタカナ正規化（F-16）: 検索照合用。前後の空白は除去する
+export function normalizeKana(text) {
+  return text
+    .trim()
+    .replace(/[ぁ-ゖ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+}
+
+// ポケモン名検索（F-16）: 部分一致。前方一致を優先し、それぞれ図鑑番号順。
+// 戻り値: { hits: 上限件数までの一致リスト, overflow: 上限超過の有無 }
+export function searchPokemon(pokemon, query, limit = 20) {
+  const q = normalizeKana(query);
+  if (q === "") return { hits: [], overflow: false };
+  const starts = [];
+  const includes = [];
+  for (const p of pokemon) {
+    const index = p.name.indexOf(q);
+    if (index === 0) starts.push(p);
+    else if (index > 0) includes.push(p);
+  }
+  const all = starts.concat(includes);
+  return { hits: all.slice(0, limit), overflow: all.length > limit };
+}
+
 // 倍率セクションのアクセント色
 export function groupColor(value) {
   if (value >= 4) return "#D32F2F";
