@@ -65,10 +65,16 @@ body {
 .container { max-width: 860px; margin: 0 auto; }
 
 header { text-align: center; margin-bottom: 24px; }
+/* ロゴとサイト名は横並び1行で表示 */
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
 .header-logo {
-  width: 76px;
-  height: 76px;
-  margin-bottom: 8px;
+  width: 48px;
+  height: 48px;
   filter: drop-shadow(0 4px 10px rgba(30, 40, 90, 0.18));
 }
 header h1 { font-size: 1.6rem; letter-spacing: 0.05em; white-space: nowrap; }
@@ -89,6 +95,15 @@ section h2 {
   color: var(--text-muted);
   margin-bottom: 14px;
   letter-spacing: 0.08em;
+}
+
+/* ---- フッター（商標・免責・著作権表記。控えめに表示） ---- */
+#site-footer {
+  margin-top: 36px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 0.68rem;
+  line-height: 1.8;
 }
 
 /* ---- テーマ切替ボタン（画面右上隅に固定） ---- */
@@ -340,11 +355,12 @@ section h2 {
   body { padding: 12px 8px 32px; }
   header { padding-right: 52px; padding-left: 52px; }
   /* 見出しは常に1行（14文字+字間=14.7em相当。画面幅に応じて縮小。
-     136px=左右padding合計120px+スクロールバー余裕分） */
-  header h1 { font-size: clamp(0.7rem, calc((100vw - 136px) / 15), 1.25rem); }
+     176px=左右padding合計120px+スクロールバー余裕分16px+ロゴ32px+gap8px） */
+  header h1 { font-size: clamp(0.7rem, calc((100vw - 176px) / 15), 1.25rem); }
   /* 説明文は常に2行（最長行=1行目の22.1em相当ぶん縮小） */
   header p { font-size: clamp(0.5rem, calc((100vw - 136px) / 22.5), 0.85rem); }
-  .header-logo { width: 56px; height: 56px; margin-bottom: 4px; }
+  .title-row { gap: 8px; }
+  .header-logo { width: 32px; height: 32px; }
 
   /* テーマ切替ボタンは画面追随ではなくページ最上部に固定 */
   #theme-toggle { position: absolute; }
