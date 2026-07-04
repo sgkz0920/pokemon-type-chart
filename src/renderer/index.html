@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<!--
+作成日: 2026-07-04
+処理名称: ポケモンタイプ相性チェッカー 画面構造
+処理概要: 防御側タイプ（最大2つ）と特性（1つ）を選択し、攻撃側全18タイプとの
+          相性倍率を倍率別グルーピングで表示する画面のHTML構造。
+          Electronレンダラーおよびブラウザ（GitHub Pages）の両方で動作する。
+ファイル名: index.html
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ポケモンタイプ相性チェッカー</title>
+<script>
+  // テーマの初期適用（描画前に実行してちらつきを防ぐ）
+  (function () {
+    var saved = null;
+    try { saved = localStorage.getItem("pokemon-type-chart-theme"); } catch (e) { /* localStorageが使えない環境ではOS設定に従う */ }
+    var theme = saved === "dark" || saved === "light"
+      ? saved
+      : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.dataset.theme = theme;
+  })();
+</script>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<button id="theme-toggle" type="button" aria-label="ダークモード切り替え">💡</button>
+
+<div class="container">
+  <header>
+    <h1>ポケモンタイプ相性チェッカー</h1>
+    <p>防御側のタイプを選ぶと、攻撃側全18タイプとの相性倍率を表示します（第6世代以降準拠）</p>
+  </header>
+
+  <section id="type-panel">
+    <h2>防御側タイプを選択（最大2つ）</h2>
+    <div id="type-grid"></div>
+  </section>
+
+  <section id="status-panel">
+    <h2>選択中のタイプ</h2>
+    <div id="status-slots"></div>
+    <div id="ability-row">
+      <label for="ability-select">特性:</label>
+      <select id="ability-select"></select>
+      <p id="ability-note"></p>
+    </div>
+  </section>
+
+  <section id="result-panel">
+    <div class="result-header">
+      <h2>相性倍率</h2>
+      <button id="clear-btn" type="button" disabled>クリア</button>
+    </div>
+    <div id="result-body"></div>
+  </section>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

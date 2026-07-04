@@ -1,0 +1,19 @@
+{
+  "name": "pokemon-type-chart",
+  "version": "2.0.0",
+  "description": "ポケモンタイプ相性チェッカー（Electron版）。防御側タイプ・特性から攻撃側全18タイプとの相性倍率を表示する。",
+  "type": "module",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "test:e2e": "node scripts/e2e.mjs"
+  },
+  "author": "sgkz0920",
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "electron": "^43.0.0",
+    "playwright-core": "^1.61.1"
+  }
+}

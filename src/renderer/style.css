@@ -1,0 +1,264 @@
+/*
+作成日: 2026-07-04
+処理名称: ポケモンタイプ相性チェッカー スタイル定義
+処理概要: 画面全体のスタイル。配色はCSSカスタムプロパティで定義し、
+          html要素の data-theme 属性（light / dark）で切り替える。
+          幅600px以下ではスマートフォン向けのコンパクト表示に切り替える。
+ファイル名: style.css
+*/
+
+:root {
+  --radius-card: 16px;
+  --radius-btn: 10px;
+  --font-main: "Segoe UI", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+
+  /* ライトテーマ（デフォルト） */
+  --bg-gradient: linear-gradient(160deg, #eef3fb 0%, #e6ecf7 50%, #eaf0f4 100%);
+  --text-main: #2b3240;
+  --text-muted: #6b7383;
+  --text-faint: #9aa3b2;
+  --card-bg: #ffffff;
+  --shadow-card: 0 4px 16px rgba(30, 40, 90, 0.10);
+  --shadow-hover: 0 6px 18px rgba(30, 40, 90, 0.25);
+  --selected-ring: #2b3240;
+  --slot-empty-bg: #f7f9fc;
+  --slot-empty-border: #b8c0cd;
+  --select-bg: #f7f9fc;
+  --select-border: #c3c9d4;
+  --clear-bg: #5c6779;
+  --clear-bg-hover: #414b5a;
+  --clear-bg-disabled: #c3c9d4;
+  --group-bg: #fafbfd;
+}
+
+:root[data-theme="dark"] {
+  --bg-gradient: linear-gradient(160deg, #1a2029 0%, #14181f 50%, #181c24 100%);
+  --text-main: #e6eaf2;
+  --text-muted: #9aa3b5;
+  --text-faint: #6f7a8e;
+  --card-bg: #232a36;
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-hover: 0 6px 18px rgba(0, 0, 0, 0.55);
+  --selected-ring: #e6eaf2;
+  --slot-empty-bg: #1b212b;
+  --slot-empty-border: #414b5c;
+  --select-bg: #1b212b;
+  --select-border: #414b5c;
+  --clear-bg: #5c6779;
+  --clear-bg-hover: #76839a;
+  --clear-bg-disabled: #39404e;
+  --group-bg: #1d232e;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-main);
+  background: var(--bg-gradient);
+  min-height: 100vh;
+  color: var(--text-main);
+  padding: 24px 16px 48px;
+}
+
+.container { max-width: 860px; margin: 0 auto; }
+
+header { text-align: center; margin-bottom: 24px; }
+header h1 { font-size: 1.6rem; letter-spacing: 0.05em; }
+header p { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
+
+section {
+  background: var(--card-bg);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+section h2 {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  letter-spacing: 0.08em;
+}
+
+/* ---- テーマ切替ボタン（画面右上隅に固定） ---- */
+#theme-toggle {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 100;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  line-height: 1;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+#theme-toggle:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+
+/* ---- タイプ選択パネル ---- */
+#type-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+
+.type-btn {
+  border: 3px solid transparent;
+  border-radius: var(--radius-btn);
+  padding: 10px 4px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  font-family: var(--font-main);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.type-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-hover);
+}
+
+.type-btn.selected {
+  border-color: var(--selected-ring);
+  box-shadow: 0 0 0 3px rgba(128, 140, 160, 0.35), var(--shadow-hover);
+  transform: scale(1.05);
+}
+
+/* ---- 選択ステータス ---- */
+#status-slots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+}
+
+.status-slot {
+  min-width: 150px;
+  text-align: center;
+  padding: 16px 10px;
+  border-radius: var(--radius-btn);
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.status-slot.empty {
+  border: 2px dashed var(--slot-empty-border);
+  color: var(--text-faint);
+  font-size: 0.9rem;
+  font-weight: normal;
+  background: var(--slot-empty-bg);
+}
+
+.status-cross { font-size: 1.4rem; font-weight: bold; color: var(--text-muted); }
+
+/* ---- 特性選択 ---- */
+#ability-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+#ability-row label { font-size: 0.9rem; font-weight: bold; color: var(--text-muted); }
+
+#ability-select {
+  font-family: var(--font-main);
+  font-size: 0.95rem;
+  padding: 8px 12px;
+  border: 2px solid var(--select-border);
+  border-radius: var(--radius-btn);
+  background: var(--select-bg);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+#ability-select:focus { outline: none; border-color: var(--text-muted); }
+
+#ability-note {
+  width: 100%;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+#ability-note:empty { display: none; }
+
+/* ---- 結果表示パネル ---- */
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.result-header h2 { margin-bottom: 0; }
+
+#clear-btn {
+  border: none;
+  border-radius: 20px;
+  padding: 8px 20px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  font-family: var(--font-main);
+  color: #fff;
+  background: var(--clear-bg);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+#clear-btn:hover:not(:disabled) { background: var(--clear-bg-hover); transform: translateY(-2px); }
+#clear-btn:disabled { background: var(--clear-bg-disabled); cursor: not-allowed; }
+
+#result-empty {
+  text-align: center;
+  color: var(--text-faint);
+  padding: 24px 0;
+  font-size: 0.95rem;
+}
+
+.result-group {
+  border-left: 6px solid var(--group-color, #9e9e9e);
+  background: var(--group-bg);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.result-group:last-child { margin-bottom: 0; }
+
+.result-group h3 {
+  font-size: 1rem;
+  color: var(--group-color, #9e9e9e);
+  margin-bottom: 10px;
+}
+
+.badge-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.type-badge {
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+/* ---- レスポンシブ（スマホ: 幅600px以下） ---- */
+@media (max-width: 600px) {
+  body { padding: 12px 8px 32px; }
+  header h1 { font-size: 1.25rem; }
+  header { padding-right: 44px; padding-left: 44px; }
+  #type-grid { grid-template-columns: repeat(3, 1fr); }
+  .type-btn { font-size: 0.85rem; padding: 12px 2px; }
+
+  /* 「選択中のタイプ」エリアをコンパクト化し、「相性倍率」エリアを見やすくする */
+  #status-panel { padding: 12px 14px; margin-bottom: 12px; }
+  #status-panel h2 { margin-bottom: 8px; }
+  .status-slot { min-width: 96px; font-size: 0.95rem; padding: 7px 6px; }
+  .status-slot.empty { font-size: 0.8rem; }
+  .status-cross { font-size: 1.1rem; }
+  #ability-row { margin-top: 10px; }
+  #ability-select { padding: 6px 10px; font-size: 0.9rem; }
+}

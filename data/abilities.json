@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "createdAt": "2026-07-04",
+    "name": "特性定義",
+    "description": "防御側特性のうち攻撃技のタイプのみに依存するもの（第9世代準拠）。効果は宣言的ルール（immune / scale / scaleIfSuper / wonderGuard）で表現する。",
+    "fileName": "abilities.json"
+  },
+  "abilities": [
+    { "id": "none",          "name": "特性なし",         "description": "", "rules": [] },
+    { "id": "levitate",      "name": "ふゆう",           "description": "じめん技を無効化", "rules": [{ "kind": "immune", "attackTypes": [8] }] },
+    { "id": "thick-fat",     "name": "あついしぼう",     "description": "ほのお・こおり技の倍率を0.5倍に補正", "rules": [{ "kind": "scale", "attackTypes": [1, 5], "factor": 0.5 }] },
+    { "id": "flash-fire",    "name": "もらいび",         "description": "ほのお技を無効化", "rules": [{ "kind": "immune", "attackTypes": [1] }] },
+    { "id": "well-baked",    "name": "こんがりボディ",   "description": "ほのお技を無効化", "rules": [{ "kind": "immune", "attackTypes": [1] }] },
+    { "id": "water-absorb",  "name": "ちょすい",         "description": "みず技を無効化", "rules": [{ "kind": "immune", "attackTypes": [2] }] },
+    { "id": "storm-drain",   "name": "よびみず",         "description": "みず技を無効化", "rules": [{ "kind": "immune", "attackTypes": [2] }] },
+    { "id": "volt-absorb",   "name": "ちくでん",         "description": "でんき技を無効化", "rules": [{ "kind": "immune", "attackTypes": [3] }] },
+    { "id": "lightning-rod", "name": "ひらいしん",       "description": "でんき技を無効化", "rules": [{ "kind": "immune", "attackTypes": [3] }] },
+    { "id": "motor-drive",   "name": "でんきエンジン",   "description": "でんき技を無効化", "rules": [{ "kind": "immune", "attackTypes": [3] }] },
+    { "id": "sap-sipper",    "name": "そうしょく",       "description": "くさ技を無効化", "rules": [{ "kind": "immune", "attackTypes": [4] }] },
+    { "id": "dry-skin",      "name": "かんそうはだ",     "description": "みず技を無効化、ほのお技の倍率を1.25倍に補正",
+      "rules": [{ "kind": "immune", "attackTypes": [2] }, { "kind": "scale", "attackTypes": [1], "factor": 1.25 }] },
+    { "id": "fluffy",        "name": "もふもふ",         "description": "ほのお技の倍率を2倍に補正", "rules": [{ "kind": "scale", "attackTypes": [1], "factor": 2 }] },
+    { "id": "filter",        "name": "フィルター",       "description": "効果ばつぐんの技の倍率を0.75倍に補正", "rules": [{ "kind": "scaleIfSuper", "factor": 0.75 }] },
+    { "id": "solid-rock",    "name": "ハードロック",     "description": "効果ばつぐんの技の倍率を0.75倍に補正", "rules": [{ "kind": "scaleIfSuper", "factor": 0.75 }] },
+    { "id": "prism-armor",   "name": "プリズムアーマー", "description": "効果ばつぐんの技の倍率を0.75倍に補正", "rules": [{ "kind": "scaleIfSuper", "factor": 0.75 }] },
+    { "id": "wonder-guard",  "name": "ふしぎなまもり",   "description": "効果ばつぐん以外の技を無効化", "rules": [{ "kind": "wonderGuard" }] }
+  ]
+}
