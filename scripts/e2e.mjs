@@ -129,42 +129,45 @@ await page.locator("#clear-btn").click();
 assert.equal(await page.locator("#pokemon-search").inputValue(), "");
 ok("E12: ひらがな検索でリザードンを選択でき、ほのお×ひこう・いわ4倍が表示される");
 
-/* ---- E13: ピカチュウ選択（特性1つ）で「ちくでん」のみ表示 ---- */
+/* ---- E13: ロトム選択（ふゆう固定）で特性が1件になり「特性なし」は非表示 ---- */
 await page.locator("#tab-pokemon").click(); // ポケモン検索タブに切り替え
-await page.locator("#pokemon-search").fill("ぴか");
-await page.waitForTimeout(200);
-const pikaItem = page.locator(".pokemon-item").first();
-await pikaItem.click();
-await page.waitForTimeout(300);
-const pikaOptions = await page.locator("#ability-select option");
-const pikaOptionCount = await pikaOptions.count();
-assert.equal(pikaOptionCount, 1, "ピカチュウ選択時に「ちくでん」のみ表示されるべき");
-const pikaAbility = await page.locator("#ability-select").inputValue();
-assert.equal(pikaAbility, "volt-absorb"); // ちくでんのID
-ok("E13: ピカチュウ選択で特性が「ちくでん」のみになり、「特性なし」は表示されない");
+await page.locator("#pokemon-search").fill("ろとむ");
+await page.locator(".pokemon-item").first().click();
+const rotomOptions = await page
+  .locator("#ability-select option")
+  .evaluateAll((opts) => opts.map((o) => o.value));
+assert.deepEqual(rotomOptions, ["levitate"], "ロトム選択時は「ふゆう」のみ表示されるべき");
+assert.equal(await page.locator("#ability-select").inputValue(), "levitate");
+ok("E13: ロトム選択で特性が「ふゆう」のみになり、「特性なし」は表示されない");
 
-/* ---- E14: リザードン選択（特性2つ）で「もうか」「サンパワー」表示、タブ戻しで全特性復帰 ---- */
+/* ---- E14: ピカチュウ選択で「特性なし」「ひらいしん」の2択、タイプ選択で全特性復帰 ---- */
 await page.locator("#pokemon-search").clear();
-await page.locator("#pokemon-search").fill("りざーどん"); // 完全名で一意に特定
-await page.waitForTimeout(200);
-const lizarItem = page.locator(".pokemon-item").first();
-await lizarItem.click();
-await page.waitForTimeout(300);
-const lizarOptions = await page.locator("#ability-select option");
-const lizarOptionCount = await lizarOptions.count();
-assert.equal(lizarOptionCount, 2, "リザードン選択時に「もうか」「サンパワー」のみ表示されるべき");
-// タイプで選択タブに戻り、タイプボタンをクリック（選択状態をリセット）
-await page.locator("#tab-type").click();
-await page.waitForTimeout(200);
-await typeBtn(page, "ノーマル").click(); // タイプボタンをクリック→updateAbilityOptions([])が呼ばれる
-await page.waitForTimeout(300);
-const allOptions = await page.locator("#ability-select option");
-const allOptionCount = await allOptions.count();
-assert.ok(
-  allOptionCount >= 16,
-  `タイプボタン選択で全特性が表示されるべき（「特性なし」含む）が、実際は ${allOptionCount}個`
+await page.locator("#pokemon-search").fill("ぴかちゅう"); // 完全名で一意に特定
+await page.locator(".pokemon-item").first().click();
+const pikaOptions = await page
+  .locator("#ability-select option")
+  .evaluateAll((opts) => opts.map((o) => o.value));
+assert.deepEqual(
+  pikaOptions,
+  ["none", "lightning-rod"],
+  "ピカチュウ選択時は「特性なし」「ひらいしん」の2択であるべき"
 );
-ok("E14: リザードン選択で「もうか」「サンパワー」のみ、タイプ選択に戻すと全特性が復帰");
+assert.equal(await page.locator("#ability-select").inputValue(), "none"); // 既定は特性なし
+// 隠れ特性を選ぶと結果に反映される（ひらいしん: でんき無効）
+await page.locator("#ability-select").selectOption("lightning-rod");
+assert.ok(
+  (await page.locator(".result-group").last().innerText()).includes("でんき"),
+  "ひらいしん選択で でんき が無効グループに入るべき"
+);
+// タイプで選択タブに戻り、タイプボタンをクリック→全特性（17件）に復帰（F-22）
+await page.locator("#tab-type").click();
+await typeBtn(page, "ノーマル").click();
+assert.equal(
+  await page.locator("#ability-select option").count(),
+  17,
+  "タイプボタン選択で「特性なし」を含む全17特性に復帰すべき"
+);
+ok("E14: ピカチュウ選択で「特性なし」「ひらいしん」の2択、タイプ選択に戻すと全特性が復帰");
 
 /* ---- E3: ダークモード切替 ---- */
 const initialTheme = await page.evaluate(() => document.documentElement.dataset.theme);

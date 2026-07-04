@@ -320,34 +320,37 @@ describe("U9: searchPokemon（インクリメンタルサーチ）", () => {
 /* ================= U10: pokemon.json の特性情報 ================= */
 
 describe("U10: pokemon.json の abilityIds（特性）", () => {
-  test("各ポケモンが 1〜2個の abilityIds を持つ", () => {
+  test("全件が1〜3個・重複なし・昇順・0〜16の abilityIds を持つ", () => {
     for (const p of pokemon) {
       assert.ok(Array.isArray(p.abilityIds), `No.${p.no}: abilityIds が配列でない`);
-      // 当面は特性情報が部分的なため、0件を許容
       assert.ok(
-        p.abilityIds.length <= 2,
-        `No.${p.no}: abilityIds が多すぎる (${p.abilityIds.length}個)`
+        p.abilityIds.length >= 1 && p.abilityIds.length <= 3,
+        `No.${p.no}: abilityIds の要素数が不正 (${p.abilityIds.length}個)`
       );
-      for (const id of p.abilityIds) {
+      assert.equal(
+        new Set(p.abilityIds).size, p.abilityIds.length,
+        `No.${p.no}: abilityIds に重複がある`
+      );
+      for (let i = 0; i < p.abilityIds.length; i++) {
+        const id = p.abilityIds[i];
         assert.ok(Number.isInteger(id) && id >= 0 && id <= 16, `No.${p.no}: 不正な特性ID ${id}`);
+        if (i > 0) assert.ok(id > p.abilityIds[i - 1], `No.${p.no}: abilityIds が昇順でない`);
       }
     }
   });
 
-  test("代表ポケモンの特性が正しい", () => {
+  test("代表ポケモンの特性がゲーム本編と一致する", () => {
     const byNo = (no) => pokemon.find((p) => p.no === no);
-    // 当面はデータが部分的なため、記載されているポケモンのみ検証
-    const fushigidane = byNo(1);
-    if (fushigidane && fushigidane.abilityIds.length > 0) {
-      assert.deepEqual(fushigidane.abilityIds, [0]);
-    }
-    const lizardon = byNo(6);
-    if (lizardon && lizardon.abilityIds.length > 0) {
-      assert.deepEqual(lizardon.abilityIds, [1, 3]);
-    }
-    const pikachu = byNo(25);
-    if (pikachu && pikachu.abilityIds.length > 0) {
-      assert.deepEqual(pikachu.abilityIds, [7]);
-    }
+    const idxOf = (name) => abilities.findIndex((a) => a.name === name);
+    // フシギダネ: しんりょく/ようりょくそ → どちらも相性に無関係 → 特性なしのみ
+    assert.deepEqual(byNo(1).abilityIds, [0]);
+    // ピカチュウ: せいでんき（無関係）＋ ひらいしん（隠れ特性）
+    assert.deepEqual(byNo(25).abilityIds, [0, idxOf("ひらいしん")]);
+    // シャワーズ: ちょすい ＋ うるおいボディ（無関係・隠れ特性）
+    assert.deepEqual(byNo(134).abilityIds, [0, idxOf("ちょすい")]);
+    // ロトム: ふゆうのみ → 特性なしにはなり得ない
+    assert.deepEqual(byNo(479).abilityIds, [idxOf("ふゆう")]);
+    // ヌケニン: ふしぎなまもりのみ
+    assert.deepEqual(byNo(292).abilityIds, [idxOf("ふしぎなまもり")]);
   });
 });
