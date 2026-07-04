@@ -87,7 +87,12 @@ window.addEventListener(
 // 当てにならない（アニメーション後に画面外へ出る）ため対処する（F-11）
 function scrollToPanelIfNeeded(panel) {
   const rect = panel.getBoundingClientRect();
-  const fullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+  // iOS Safariはツールバー表示中、innerHeightが実際の可視域より大きい値を
+  // 返すことがあるため、利用可能ならvisualViewportで可視判定する（F-15）
+  const viewportHeight = window.visualViewport
+    ? window.visualViewport.height
+    : window.innerHeight;
+  const fullyVisible = rect.top >= 0 && rect.bottom <= viewportHeight;
   const interrupting = pendingScrollPanel !== null && pendingScrollPanel !== panel;
   if (fullyVisible) {
     if (interrupting) {
@@ -128,12 +133,17 @@ function toggleType(typeId) {
   if (selectedTypes.length === 2) scrollToPanelIfNeeded(statusPanel);
 }
 
-// 選択クリア（F-05）: タイプと特性をリセットし、タイプ選択エリアへスクロール（S3）
+// 選択クリア（F-05）: タイプと特性をリセットし、ページ最上部へスクロール（S3・F-15）
+// タイプ選択エリアの先頭ではなく最上部まで戻すことで、ヘッダーの分だけ
+// 「選択中のタイプ」エリアが画面外に出て、再選択時のスクロールが確実に発火する
 function clearSelection() {
   selectedTypes = [];
   selectedAbilityId = "none";
   renderAll();
-  scrollToPanelIfNeeded(typePanel);
+  if (window.scrollY > 0) {
+    pendingScrollPanel = typePanel; // 割り込み判定用（最上部＝タイプ選択エリア扱い）
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 }
 
 /* ================= 表示層 ================= */
