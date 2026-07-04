@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<!--
+作成日: 2026-07-04
+処理名称: ポケモンタイプ相性検索ツール
+処理概要: 防御側タイプ（最大2つ）を選択し、攻撃側全18タイプとの相性倍率を
+          倍率別グルーピングで表示する自己完結型HTMLアプリケーション。
+          第6世代以降のタイプ相性表に準拠。外部リソース不使用。
+ファイル名: pokemon_type_chart.html
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ポケモンタイプ相性チェッカー</title>
+<style>
+  :root {
+    --radius-card: 16px;
+    --radius-btn: 10px;
+    --shadow-card: 0 4px 16px rgba(30, 40, 90, 0.10);
+    --shadow-hover: 0 6px 18px rgba(30, 40, 90, 0.25);
+    --font-main: "Segoe UI", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-main);
+    background: linear-gradient(160deg, #eef3fb 0%, #e6ecf7 50%, #eaf0f4 100%);
+    min-height: 100vh;
+    color: #2b3240;
+    padding: 24px 16px 48px;
+  }
+
+  .container { max-width: 860px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 { font-size: 1.6rem; letter-spacing: 0.05em; }
+  header p { color: #6b7383; font-size: 0.85rem; margin-top: 4px; }
+
+  section {
+    background: #ffffff;
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  section h2 {
+    font-size: 0.95rem;
+    color: #6b7383;
+    margin-bottom: 14px;
+    letter-spacing: 0.08em;
+  }
+
+  /* ---- タイプ選択パネル ---- */
+  #type-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+  }
+
+  .type-btn {
+    border: 3px solid transparent;
+    border-radius: var(--radius-btn);
+    padding: 10px 4px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    font-family: var(--font-main);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+
+  .type-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+  }
+
+  .type-btn.selected {
+    border-color: #2b3240;
+    box-shadow: 0 0 0 3px rgba(43, 50, 64, 0.25), var(--shadow-hover);
+    transform: scale(1.05);
+  }
+
+  /* ---- 選択ステータス ---- */
+  #status-panel .status-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  #status-panel .status-header h2 { margin-bottom: 0; }
+
+  #clear-btn {
+    border: none;
+    border-radius: 20px;
+    padding: 8px 20px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    font-family: var(--font-main);
+    color: #fff;
+    background: #5c6779;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  #clear-btn:hover:not(:disabled) { background: #414b5a; transform: translateY(-2px); }
+  #clear-btn:disabled { background: #c3c9d4; cursor: not-allowed; }
+
+  #status-slots {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .status-slot {
+    min-width: 150px;
+    text-align: center;
+    padding: 16px 10px;
+    border-radius: var(--radius-btn);
+    font-size: 1.25rem;
+    font-weight: bold;
+  }
+
+  .status-slot.empty {
+    border: 2px dashed #b8c0cd;
+    color: #9aa3b2;
+    font-size: 0.9rem;
+    font-weight: normal;
+    background: #f7f9fc;
+  }
+
+  .status-cross { font-size: 1.4rem; font-weight: bold; color: #6b7383; }
+
+  /* ---- 結果表示パネル ---- */
+  #result-empty {
+    text-align: center;
+    color: #9aa3b2;
+    padding: 24px 0;
+    font-size: 0.95rem;
+  }
+
+  .result-group {
+    border-left: 6px solid var(--group-color, #9e9e9e);
+    background: #fafbfd;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .result-group:last-child { margin-bottom: 0; }
+
+  .result-group h3 {
+    font-size: 1rem;
+    color: var(--group-color, #9e9e9e);
+    margin-bottom: 10px;
+  }
+
+  .badge-list { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .type-badge {
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 0.9rem;
+    font-weight: bold;
+  }
+
+  /* ---- レスポンシブ ---- */
+  @media (max-width: 600px) {
+    body { padding: 12px 8px 32px; }
+    header h1 { font-size: 1.25rem; }
+    #type-grid { grid-template-columns: repeat(3, 1fr); }
+    .type-btn { font-size: 0.85rem; padding: 12px 2px; }
+    .status-slot { min-width: 100px; font-size: 1rem; padding: 12px 6px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>ポケモンタイプ相性チェッカー</h1>
+    <p>防御側のタイプを選ぶと、攻撃側全18タイプとの相性倍率を表示します（第6世代以降準拠）</p>
+  </header>
+
+  <section id="type-panel">
+    <h2>防御側タイプを選択（最大2つ）</h2>
+    <div id="type-grid"></div>
+  </section>
+
+  <section id="status-panel">
+    <div class="status-header">
+      <h2>選択中のタイプ</h2>
+      <button id="clear-btn" disabled>クリア</button>
+    </div>
+    <div id="status-slots"></div>
+  </section>
+
+  <section id="result-panel">
+    <h2>相性倍率</h2>
+    <div id="result-body"></div>
+  </section>
+</div>
+
+<script>
+"use strict";
+
+/* ================= データ層 ================= */
+
+// タイプ定義（idは相性表のインデックスと共通）
+const TYPES = [
+  { id: 0,  name: "ノーマル",   color: "#A8A878", darkText: false },
+  { id: 1,  name: "ほのお",     color: "#F08030", darkText: false },
+  { id: 2,  name: "みず",       color: "#6890F0", darkText: false },
+  { id: 3,  name: "でんき",     color: "#F8D030", darkText: true  },
+  { id: 4,  name: "くさ",       color: "#78C850", darkText: false },
+  { id: 5,  name: "こおり",     color: "#98D8D8", darkText: true  },
+  { id: 6,  name: "かくとう",   color: "#C03028", darkText: false },
+  { id: 7,  name: "どく",       color: "#A040A0", darkText: false },
+  { id: 8,  name: "じめん",     color: "#E0C068", darkText: true  },
+  { id: 9,  name: "ひこう",     color: "#A890F0", darkText: false },
+  { id: 10, name: "エスパー",   color: "#F85888", darkText: false },
+  { id: 11, name: "むし",       color: "#A8B820", darkText: false },
+  { id: 12, name: "いわ",       color: "#B8A038", darkText: false },
+  { id: 13, name: "ゴースト",   color: "#705898", darkText: false },
+  { id: 14, name: "ドラゴン",   color: "#7038F8", darkText: false },
+  { id: 15, name: "あく",       color: "#705848", darkText: false },
+  { id: 16, name: "はがね",     color: "#B8B8D0", darkText: true  },
+  { id: 17, name: "フェアリー", color: "#EE99AC", darkText: true  },
+];
+
+// タイプ相性表（第6世代以降準拠）
+// TYPE_CHART[攻撃タイプID][防御タイプID] = 倍率
+// 列順: ノ  炎  水  電  草  氷  闘  毒  地  飛  超  虫  岩  霊  竜  悪  鋼  妖
+const TYPE_CHART = [
+  [   1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1, .5,  0,  1,  1, .5,  1], // ノーマル
+  [   1, .5, .5,  1,  2,  2,  1,  1,  1,  1,  1,  2, .5,  1, .5,  1,  2,  1], // ほのお
+  [   1,  2, .5,  1, .5,  1,  1,  1,  2,  1,  1,  1,  2,  1, .5,  1,  1,  1], // みず
+  [   1,  1,  2, .5, .5,  1,  1,  1,  0,  2,  1,  1,  1,  1, .5,  1,  1,  1], // でんき
+  [   1, .5,  2,  1, .5,  1,  1, .5,  2, .5,  1, .5,  2,  1, .5,  1, .5,  1], // くさ
+  [   1, .5, .5,  1,  2, .5,  1,  1,  2,  2,  1,  1,  1,  1,  2,  1, .5,  1], // こおり
+  [   2,  1,  1,  1,  1,  2,  1, .5,  1, .5, .5, .5,  2,  0,  1,  2,  2, .5], // かくとう
+  [   1,  1,  1,  1,  2,  1,  1, .5, .5,  1,  1,  1, .5, .5,  1,  1,  0,  2], // どく
+  [   1,  2,  1,  2, .5,  1,  1,  2,  1,  0,  1, .5,  2,  1,  1,  1,  2,  1], // じめん
+  [   1,  1,  1, .5,  2,  1,  2,  1,  1,  1,  1,  2, .5,  1,  1,  1, .5,  1], // ひこう
+  [   1,  1,  1,  1,  1,  1,  2,  2,  1,  1, .5,  1,  1,  1,  1,  0, .5,  1], // エスパー
+  [   1, .5,  1,  1,  2,  1, .5, .5,  1, .5,  2,  1,  1, .5,  1,  2, .5, .5], // むし
+  [   1,  2,  1,  1,  1,  2, .5,  1, .5,  2,  1,  2,  1,  1,  1,  1, .5,  1], // いわ
+  [   0,  1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  1,  1,  2,  1, .5,  1,  1], // ゴースト
+  [   1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  1, .5,  0], // ドラゴン
+  [   1,  1,  1,  1,  1,  1, .5,  1,  1,  1,  2,  1,  1,  2,  1, .5,  1, .5], // あく
+  [   1, .5, .5, .5,  1,  2,  1,  1,  1,  1,  1,  1,  2,  1,  1,  1, .5,  2], // はがね
+  [   1, .5,  1,  1,  1,  1,  2, .5,  1,  1,  1,  1,  1,  1,  2,  2, .5,  1], // フェアリー
+];
+
+// 倍率セクション定義（表示順・見出し・アクセント色）
+const MULTIPLIER_GROUPS = [
+  { value: 4,    label: "4倍（こうかばつぐん）",    color: "#D32F2F" },
+  { value: 2,    label: "2倍（こうかばつぐん）",    color: "#F06292" },
+  { value: 1,    label: "1倍（等倍）",             color: "#9E9E9E" },
+  { value: 0.5,  label: "0.5倍（いまひとつ）",      color: "#64B5F6" },
+  { value: 0.25, label: "0.25倍（いまひとつ）",     color: "#1976D2" },
+  { value: 0,    label: "無効（こうかなし）",       color: "#424242" },
+];
+
+/* ================= 状態管理 ================= */
+
+let selectedTypes = []; // 選択中の防御タイプID（選択順を保持、長さ0〜2）
+
+/* ================= ロジック層 ================= */
+
+// タイプ選択トグル（F-01）: 再クリックで解除、3つ目はFIFOで最古を解除
+function toggleType(typeId) {
+  const index = selectedTypes.indexOf(typeId);
+  if (index !== -1) {
+    selectedTypes.splice(index, 1);
+  } else {
+    if (selectedTypes.length === 2) selectedTypes.shift();
+    selectedTypes.push(typeId);
+  }
+  renderAll();
+}
+
+// 選択クリア（F-05）
+function clearSelection() {
+  selectedTypes = [];
+  renderAll();
+}
+
+// 相性倍率計算（F-02）: 純粋関数。戻り値は攻撃タイプID順の倍率配列
+function calcMultipliers(defenseTypeIds) {
+  return TYPE_CHART.map((row) =>
+    defenseTypeIds.reduce((acc, def) => acc * row[def], 1)
+  );
+}
+
+// 倍率別グルーピング（F-03）: 該当0件の倍率は含めない
+function groupByMultiplier(multipliers) {
+  const groups = new Map();
+  for (const { value } of MULTIPLIER_GROUPS) {
+    const ids = TYPES.filter((t) => multipliers[t.id] === value).map((t) => t.id);
+    if (ids.length > 0) groups.set(value, ids);
+  }
+  return groups;
+}
+
+/* ================= 表示層 ================= */
+
+const typeGrid = document.getElementById("type-grid");
+const statusSlots = document.getElementById("status-slots");
+const resultBody = document.getElementById("result-body");
+const clearBtn = document.getElementById("clear-btn");
+
+// タイプボタンの初期生成（初回のみ）
+function buildTypePanel() {
+  for (const type of TYPES) {
+    const btn = document.createElement("button");
+    btn.className = "type-btn";
+    btn.dataset.typeId = type.id;
+    btn.textContent = type.name;
+    btn.style.background = type.color;
+    btn.style.color = type.darkText ? "#2b3240" : "#ffffff";
+    btn.addEventListener("click", () => toggleType(type.id));
+    typeGrid.appendChild(btn);
+  }
+}
+
+// ボタンの選択状態を反映
+function renderTypePanel() {
+  for (const btn of typeGrid.children) {
+    btn.classList.toggle(
+      "selected",
+      selectedTypes.includes(Number(btn.dataset.typeId))
+    );
+  }
+}
+
+// 選択ステータス表示（F-04）
+function renderStatus() {
+  statusSlots.innerHTML = "";
+  for (let slot = 0; slot < 2; slot++) {
+    if (slot === 1) {
+      const cross = document.createElement("span");
+      cross.className = "status-cross";
+      cross.textContent = "×";
+      statusSlots.appendChild(cross);
+    }
+    const el = document.createElement("span");
+    el.className = "status-slot";
+    const typeId = selectedTypes[slot];
+    if (typeId === undefined) {
+      el.classList.add("empty");
+      el.textContent = slot === 0 ? "タイプ1を選択" : "タイプ2（任意）";
+    } else {
+      const type = TYPES[typeId];
+      el.textContent = type.name;
+      el.style.background = type.color;
+      el.style.color = type.darkText ? "#2b3240" : "#ffffff";
+    }
+    statusSlots.appendChild(el);
+  }
+  clearBtn.disabled = selectedTypes.length === 0;
+}
+
+// 結果表示（F-03）
+function renderResult() {
+  resultBody.innerHTML = "";
+  if (selectedTypes.length === 0) {
+    const msg = document.createElement("p");
+    msg.id = "result-empty";
+    msg.textContent = "防御側のタイプを選択してください";
+    resultBody.appendChild(msg);
+    return;
+  }
+
+  const groups = groupByMultiplier(calcMultipliers(selectedTypes));
+  for (const groupDef of MULTIPLIER_GROUPS) {
+    const ids = groups.get(groupDef.value);
+    if (!ids) continue;
+
+    const groupEl = document.createElement("div");
+    groupEl.className = "result-group";
+    groupEl.style.setProperty("--group-color", groupDef.color);
+
+    const heading = document.createElement("h3");
+    heading.textContent = groupDef.label;
+    groupEl.appendChild(heading);
+
+    const list = document.createElement("div");
+    list.className = "badge-list";
+    for (const id of ids) {
+      const type = TYPES[id];
+      const badge = document.createElement("span");
+      badge.className = "type-badge";
+      badge.textContent = type.name;
+      badge.style.background = type.color;
+      badge.style.color = type.darkText ? "#2b3240" : "#ffffff";
+      list.appendChild(badge);
+    }
+    groupEl.appendChild(list);
+    resultBody.appendChild(groupEl);
+  }
+}
+
+// 一括再描画
+function renderAll() {
+  renderTypePanel();
+  renderStatus();
+  renderResult();
+}
+
+/* ================= 初期化 ================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+  buildTypePanel();
+  clearBtn.addEventListener("click", clearSelection);
+  renderAll();
+});
+</script>
+</body>
+</html>
