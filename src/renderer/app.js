@@ -65,14 +65,44 @@ function toggleTheme() {
   try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* 保存不可でも動作は継続 */ }
 }
 
-/* ================= 自動スクロール（F-09） ================= */
+/* ================= 自動スクロール（F-09・F-11） ================= */
+
+// スムーズスクロール進行中の目標パネル。スクロールイベントが150ms途絶えたら
+// 完了とみなして解除する（scrollendはiOS Safari非対応のため使わない）
+let pendingScrollPanel = null;
+let scrollSettleTimer = null;
+
+window.addEventListener(
+  "scroll",
+  () => {
+    clearTimeout(scrollSettleTimer);
+    scrollSettleTimer = setTimeout(() => { pendingScrollPanel = null; }, 150);
+  },
+  { passive: true }
+);
 
 // 対象エリアが画面内に完全に収まっていない場合のみスクロールする
 // （PC等の大画面では実質無効。スマホでの操作導線を想定）
+// ただし別パネルへのスムーズスクロール進行中は、現在座標での可視判定が
+// 当てにならない（アニメーション後に画面外へ出る）ため対処する（F-11）
 function scrollToPanelIfNeeded(panel) {
   const rect = panel.getBoundingClientRect();
   const fullyVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-  if (!fullyVisible) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+  const interrupting = pendingScrollPanel !== null && pendingScrollPanel !== panel;
+  if (fullyVisible) {
+    if (interrupting) {
+      // 対象は現在見えているが、進行中のスクロールで画面外へ出てしまうため
+      // アニメーションを中断してこの位置に留める。同位置へのscrollTo/
+      // scrollIntoViewはChromiumで無視され中断できないため、1pxずらして戻す
+      const y = window.scrollY;
+      window.scrollTo({ top: y + 1, behavior: "instant" });
+      window.scrollTo({ top: y, behavior: "instant" });
+      pendingScrollPanel = null;
+    }
+    return;
+  }
+  pendingScrollPanel = panel;
+  panel.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 /* ================= 操作ロジック ================= */
@@ -232,6 +262,10 @@ async function init() {
   applyTheme(document.documentElement.dataset.theme || "light");
   themeToggle.addEventListener("click", toggleTheme);
   clearBtn.addEventListener("click", clearSelection);
+
+  // iOS Safariはviewport metaのuser-scalable=noを無視するため、
+  // ピンチズーム（gestureイベント）を直接抑止する（F-12）
+  document.addEventListener("gesturestart", (e) => e.preventDefault());
 
   data = await loadData();
   buildTypePanel();

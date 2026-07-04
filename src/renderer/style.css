@@ -58,13 +58,17 @@ body {
   min-height: 100vh;
   color: var(--text-main);
   padding: 24px 16px 48px;
+  /* ダブルタップズームの抑止（タップ遅延の解消も兼ねる） */
+  touch-action: manipulation;
 }
 
 .container { max-width: 860px; margin: 0 auto; }
 
 header { text-align: center; margin-bottom: 24px; }
-header h1 { font-size: 1.6rem; letter-spacing: 0.05em; }
+header h1 { font-size: 1.6rem; letter-spacing: 0.05em; white-space: nowrap; }
 header p { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
+/* 説明文は意味の切れ目で分割した2行固定表示 */
+.desc-line { display: block; white-space: nowrap; }
 
 section {
   background: var(--card-bg);
@@ -248,8 +252,15 @@ section h2 {
 /* ---- レスポンシブ（スマホ: 幅600px以下） ---- */
 @media (max-width: 600px) {
   body { padding: 12px 8px 32px; }
-  header h1 { font-size: 1.25rem; }
-  header { padding-right: 44px; padding-left: 44px; }
+  header { padding-right: 52px; padding-left: 52px; }
+  /* 見出しは常に1行（14文字+字間=14.7em相当。画面幅に応じて縮小。
+     136px=左右padding合計120px+スクロールバー余裕分） */
+  header h1 { font-size: clamp(0.7rem, calc((100vw - 136px) / 15), 1.25rem); }
+  /* 説明文は常に2行（最長行=1行目の22.1em相当ぶん縮小） */
+  header p { font-size: clamp(0.5rem, calc((100vw - 136px) / 22.5), 0.85rem); }
+
+  /* テーマ切替ボタンは画面追随ではなくページ最上部に固定 */
+  #theme-toggle { position: absolute; }
   #type-grid { grid-template-columns: repeat(3, 1fr); }
   .type-btn { font-size: 0.85rem; padding: 12px 2px; }
 
