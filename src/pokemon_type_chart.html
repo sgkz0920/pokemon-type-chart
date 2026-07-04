@@ -2,8 +2,8 @@
 <!--
 作成日: 2026-07-04
 処理名称: ポケモンタイプ相性検索ツール
-処理概要: 防御側タイプ（最大2つ）を選択し、攻撃側全18タイプとの相性倍率を
-          倍率別グルーピングで表示する自己完結型HTMLアプリケーション。
+処理概要: 防御側タイプ（最大2つ）と特性（1つ）を選択し、攻撃側全18タイプとの
+          相性倍率を倍率別グルーピングで表示する自己完結型HTMLアプリケーション。
           第6世代以降のタイプ相性表に準拠。外部リソース不使用。
 ファイル名: pokemon_type_chart.html
 -->
@@ -131,6 +131,40 @@
 
   .status-cross { font-size: 1.4rem; font-weight: bold; color: #6b7383; }
 
+  /* ---- 特性選択 ---- */
+  #ability-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+
+  #ability-row label { font-size: 0.9rem; font-weight: bold; color: #6b7383; }
+
+  #ability-select {
+    font-family: var(--font-main);
+    font-size: 0.95rem;
+    padding: 8px 12px;
+    border: 2px solid #c3c9d4;
+    border-radius: var(--radius-btn);
+    background: #f7f9fc;
+    color: #2b3240;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  #ability-select:focus { outline: none; border-color: #5c6779; }
+
+  #ability-note {
+    width: 100%;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #6b7383;
+    margin-top: 4px;
+  }
+  #ability-note:empty { display: none; }
+
   /* ---- 結果表示パネル ---- */
   #result-empty {
     text-align: center;
@@ -191,6 +225,11 @@
       <button id="clear-btn" disabled>クリア</button>
     </div>
     <div id="status-slots"></div>
+    <div id="ability-row">
+      <label for="ability-select">特性:</label>
+      <select id="ability-select"></select>
+      <p id="ability-note"></p>
+    </div>
   </section>
 
   <section id="result-panel">
@@ -250,19 +289,37 @@ const TYPE_CHART = [
   [   1, .5,  1,  1,  1,  1,  2, .5,  1,  1,  1,  1,  1,  1,  2,  2, .5,  1], // フェアリー
 ];
 
-// 倍率セクション定義（表示順・見出し・アクセント色）
-const MULTIPLIER_GROUPS = [
-  { value: 4,    label: "4倍（こうかばつぐん）",    color: "#D32F2F" },
-  { value: 2,    label: "2倍（こうかばつぐん）",    color: "#F06292" },
-  { value: 1,    label: "1倍（等倍）",             color: "#9E9E9E" },
-  { value: 0.5,  label: "0.5倍（いまひとつ）",      color: "#64B5F6" },
-  { value: 0.25, label: "0.25倍（いまひとつ）",     color: "#1976D2" },
-  { value: 0,    label: "無効（こうかなし）",       color: "#424242" },
+// 特性定義（防御側特性のうち、攻撃技のタイプのみに依存するもの。第9世代準拠）
+// ルール種別:
+//   immune       : attackTypes の技を無効化（タイプ相性より優先）
+//   scale        : attackTypes の技の倍率に factor を乗算
+//   scaleIfSuper : 補正後の倍率が1より大きい場合のみ factor を乗算
+//   wonderGuard  : タイプ相性倍率が1以下の技を無効化
+const ABILITIES = [
+  { id: "none",          name: "特性なし",         description: "", rules: [] },
+  { id: "levitate",      name: "ふゆう",           description: "じめん技を無効化", rules: [{ kind: "immune", attackTypes: [8] }] },
+  { id: "thick-fat",     name: "あついしぼう",     description: "ほのお・こおり技の倍率を0.5倍に補正", rules: [{ kind: "scale", attackTypes: [1, 5], factor: 0.5 }] },
+  { id: "flash-fire",    name: "もらいび",         description: "ほのお技を無効化", rules: [{ kind: "immune", attackTypes: [1] }] },
+  { id: "well-baked",    name: "こんがりボディ",   description: "ほのお技を無効化", rules: [{ kind: "immune", attackTypes: [1] }] },
+  { id: "water-absorb",  name: "ちょすい",         description: "みず技を無効化", rules: [{ kind: "immune", attackTypes: [2] }] },
+  { id: "storm-drain",   name: "よびみず",         description: "みず技を無効化", rules: [{ kind: "immune", attackTypes: [2] }] },
+  { id: "volt-absorb",   name: "ちくでん",         description: "でんき技を無効化", rules: [{ kind: "immune", attackTypes: [3] }] },
+  { id: "lightning-rod", name: "ひらいしん",       description: "でんき技を無効化", rules: [{ kind: "immune", attackTypes: [3] }] },
+  { id: "motor-drive",   name: "でんきエンジン",   description: "でんき技を無効化", rules: [{ kind: "immune", attackTypes: [3] }] },
+  { id: "sap-sipper",    name: "そうしょく",       description: "くさ技を無効化", rules: [{ kind: "immune", attackTypes: [4] }] },
+  { id: "dry-skin",      name: "かんそうはだ",     description: "みず技を無効化、ほのお技の倍率を1.25倍に補正",
+    rules: [{ kind: "immune", attackTypes: [2] }, { kind: "scale", attackTypes: [1], factor: 1.25 }] },
+  { id: "fluffy",        name: "もふもふ",         description: "ほのお技の倍率を2倍に補正", rules: [{ kind: "scale", attackTypes: [1], factor: 2 }] },
+  { id: "filter",        name: "フィルター",       description: "効果ばつぐんの技の倍率を0.75倍に補正", rules: [{ kind: "scaleIfSuper", factor: 0.75 }] },
+  { id: "solid-rock",    name: "ハードロック",     description: "効果ばつぐんの技の倍率を0.75倍に補正", rules: [{ kind: "scaleIfSuper", factor: 0.75 }] },
+  { id: "prism-armor",   name: "プリズムアーマー", description: "効果ばつぐんの技の倍率を0.75倍に補正", rules: [{ kind: "scaleIfSuper", factor: 0.75 }] },
+  { id: "wonder-guard",  name: "ふしぎなまもり",   description: "効果ばつぐん以外の技を無効化", rules: [{ kind: "wonderGuard" }] },
 ];
 
 /* ================= 状態管理 ================= */
 
-let selectedTypes = []; // 選択中の防御タイプID（選択順を保持、長さ0〜2）
+let selectedTypes = [];           // 選択中の防御タイプID（選択順を保持、長さ0〜2）
+let selectedAbilityId = "none";   // 選択中の特性ID（常に1件）
 
 /* ================= ロジック層 ================= */
 
@@ -278,9 +335,10 @@ function toggleType(typeId) {
   renderAll();
 }
 
-// 選択クリア（F-05）
+// 選択クリア（F-05）: タイプと特性の両方をリセット
 function clearSelection() {
   selectedTypes = [];
+  selectedAbilityId = "none";
   renderAll();
 }
 
@@ -291,14 +349,57 @@ function calcMultipliers(defenseTypeIds) {
   );
 }
 
-// 倍率別グルーピング（F-03）: 該当0件の倍率は含めない
+// 特性補正適用（F-07）: 純粋関数。計算順序は追加設計書4.1に準拠
+function applyAbility(baseMultipliers, ability) {
+  return baseMultipliers.map((base, atk) => {
+    let m = base;
+    for (const rule of ability.rules) {
+      if (rule.kind === "immune" && rule.attackTypes.includes(atk)) return 0;
+    }
+    for (const rule of ability.rules) {
+      if (rule.kind === "scale" && rule.attackTypes.includes(atk)) m *= rule.factor;
+    }
+    for (const rule of ability.rules) {
+      if (rule.kind === "scaleIfSuper" && m > 1) m *= rule.factor;
+    }
+    for (const rule of ability.rules) {
+      if (rule.kind === "wonderGuard" && base <= 1) return 0;
+    }
+    return m;
+  });
+}
+
+// 倍率別グルーピング（F-03）: 実際に発生した倍率値の降順で動的にグループ化
 function groupByMultiplier(multipliers) {
   const groups = new Map();
-  for (const { value } of MULTIPLIER_GROUPS) {
-    const ids = TYPES.filter((t) => multipliers[t.id] === value).map((t) => t.id);
-    if (ids.length > 0) groups.set(value, ids);
+  const values = [...new Set(multipliers)].sort((a, b) => b - a);
+  for (const value of values) {
+    groups.set(value, TYPES.filter((t) => multipliers[t.id] === value).map((t) => t.id));
   }
   return groups;
+}
+
+// 倍率表記（末尾ゼロなし。0は「無効」）
+function formatMultiplier(value) {
+  return value === 0 ? "無効" : `${value}倍`;
+}
+
+// 倍率セクションの見出し
+function groupLabel(value) {
+  if (value === 0) return "無効（こうかなし）";
+  if (value > 1) return `${formatMultiplier(value)}（こうかばつぐん）`;
+  if (value === 1) return "1倍（等倍）";
+  return `${formatMultiplier(value)}（いまひとつ）`;
+}
+
+// 倍率セクションのアクセント色
+function groupColor(value) {
+  if (value >= 4) return "#D32F2F";
+  if (value > 1) return "#F06292";
+  if (value === 1) return "#9E9E9E";
+  if (value >= 0.5) return "#64B5F6";
+  if (value > 0) return "#1976D2";
+  return "#424242";
 }
 
 /* ================= 表示層 ================= */
@@ -307,6 +408,8 @@ const typeGrid = document.getElementById("type-grid");
 const statusSlots = document.getElementById("status-slots");
 const resultBody = document.getElementById("result-body");
 const clearBtn = document.getElementById("clear-btn");
+const abilitySelect = document.getElementById("ability-select");
+const abilityNote = document.getElementById("ability-note");
 
 // タイプボタンの初期生成（初回のみ）
 function buildTypePanel() {
@@ -320,6 +423,20 @@ function buildTypePanel() {
     btn.addEventListener("click", () => toggleType(type.id));
     typeGrid.appendChild(btn);
   }
+}
+
+// 特性ドロップダウンの初期生成（初回のみ）
+function buildAbilitySelect() {
+  for (const ability of ABILITIES) {
+    const opt = document.createElement("option");
+    opt.value = ability.id;
+    opt.textContent = ability.name;
+    abilitySelect.appendChild(opt);
+  }
+  abilitySelect.addEventListener("change", () => {
+    selectedAbilityId = abilitySelect.value;
+    renderAll();
+  });
 }
 
 // ボタンの選択状態を反映
@@ -356,7 +473,14 @@ function renderStatus() {
     }
     statusSlots.appendChild(el);
   }
-  clearBtn.disabled = selectedTypes.length === 0;
+  clearBtn.disabled = selectedTypes.length === 0 && selectedAbilityId === "none";
+
+  // 特性セレクトと効果説明の反映
+  abilitySelect.value = selectedAbilityId;
+  const ability = ABILITIES.find((a) => a.id === selectedAbilityId);
+  abilityNote.textContent = ability.description
+    ? `ⓘ ${ability.name}: ${ability.description}`
+    : "";
 }
 
 // 結果表示（F-03）
@@ -370,17 +494,16 @@ function renderResult() {
     return;
   }
 
-  const groups = groupByMultiplier(calcMultipliers(selectedTypes));
-  for (const groupDef of MULTIPLIER_GROUPS) {
-    const ids = groups.get(groupDef.value);
-    if (!ids) continue;
-
+  const ability = ABILITIES.find((a) => a.id === selectedAbilityId);
+  const multipliers = applyAbility(calcMultipliers(selectedTypes), ability);
+  const groups = groupByMultiplier(multipliers);
+  for (const [value, ids] of groups) {
     const groupEl = document.createElement("div");
     groupEl.className = "result-group";
-    groupEl.style.setProperty("--group-color", groupDef.color);
+    groupEl.style.setProperty("--group-color", groupColor(value));
 
     const heading = document.createElement("h3");
-    heading.textContent = groupDef.label;
+    heading.textContent = groupLabel(value);
     groupEl.appendChild(heading);
 
     const list = document.createElement("div");
@@ -410,6 +533,7 @@ function renderAll() {
 
 document.addEventListener("DOMContentLoaded", () => {
   buildTypePanel();
+  buildAbilitySelect();
   clearBtn.addEventListener("click", clearSelection);
   renderAll();
 });
