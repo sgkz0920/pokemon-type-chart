@@ -2,8 +2,9 @@
 作成日: 2026-07-04
 処理名称: ポケモンタイプ相性チェッカー 単体テスト
 処理概要: data/ 配下のJSONデータの整合性検証と、logic.js の純粋関数
-          （相性計算・特性補正・グルーピング・表示整形）の検証を行う。
-          追加設計書（Electron移行・UI改善）9.1章 U1〜U6 に対応。
+          （相性計算・特性補正・グルーピング・表示整形・ポケモン検索）の検証を行う。
+          追加設計書（Electron移行・UI改善）9.1章 U1〜U6、および
+          追加設計書（ポケモン名検索）6.1章 U7〜U9 に対応。
 ファイル名: logic.test.mjs
 */
 import { test, describe } from "node:test";
@@ -16,6 +17,8 @@ import {
   formatMultiplier,
   groupLabel,
   groupColor,
+  normalizeKana,
+  searchPokemon,
 } from "../src/renderer/logic.js";
 
 const { types, chart } = JSON.parse(
@@ -23,6 +26,9 @@ const { types, chart } = JSON.parse(
 );
 const { abilities } = JSON.parse(
   await readFile(new URL("../data/abilities.json", import.meta.url), "utf-8")
+);
+const { pokemon } = JSON.parse(
+  await readFile(new URL("../data/pokemon.json", import.meta.url), "utf-8")
 );
 
 // タイプ名から防御タイプID配列を引くヘルパ
@@ -229,5 +235,84 @@ describe("U6: formatMultiplier / groupLabel / groupColor", () => {
     assert.equal(groupColor(0.5), "#64B5F6");
     assert.equal(groupColor(0.25), "#1976D2");
     assert.equal(groupColor(0), "#424242");
+  });
+});
+
+/* ================= U7: pokemon.json の整合性 ================= */
+
+describe("U7: pokemon.json の整合性", () => {
+  test("1000件以上あり、図鑑Noが一意かつ昇順である", () => {
+    assert.ok(pokemon.length >= 1000, `件数が少なすぎる: ${pokemon.length}`);
+    const nos = pokemon.map((p) => p.no);
+    assert.equal(new Set(nos).size, nos.length);
+    for (let i = 1; i < nos.length; i++) assert.ok(nos[i] > nos[i - 1]);
+  });
+
+  test("全件が非空の名前と1〜2件の有効なタイプIDを持つ", () => {
+    for (const p of pokemon) {
+      assert.ok(p.name.length > 0, `No.${p.no}: 名前が空`);
+      assert.ok(p.types.length >= 1 && p.types.length <= 2, `No.${p.no}: タイプ数が不正`);
+      for (const t of p.types) {
+        assert.ok(Number.isInteger(t) && t >= 0 && t <= 17, `No.${p.no}: 不正なタイプID ${t}`);
+      }
+    }
+  });
+
+  test("代表値がゲーム本編と一致する", () => {
+    const byName = (name) => pokemon.find((p) => p.name === name);
+    assert.deepEqual(byName("フシギダネ").types, [id("くさ"), id("どく")]);
+    assert.deepEqual(byName("リザードン").types, [id("ほのお"), id("ひこう")]);
+    assert.deepEqual(byName("ピカチュウ").types, [id("でんき")]);
+    assert.deepEqual(byName("ハガネール").types, [id("はがね"), id("じめん")]);
+    assert.equal(byName("フシギダネ").no, 1);
+    assert.equal(byName("ピカチュウ").no, 25);
+  });
+});
+
+/* ================= U8・U9: ポケモン名検索 ================= */
+
+describe("U8: normalizeKana（かな正規化）", () => {
+  test("ひらがなをカタカナに変換する", () => {
+    assert.equal(normalizeKana("ふしぎだね"), "フシギダネ");
+    assert.equal(normalizeKana("りざーどん"), "リザードン");
+    assert.equal(normalizeKana("ぴかチュウ"), "ピカチュウ"); // 混在もOK
+  });
+
+  test("前後の空白を除去し、カタカナ・英数字はそのまま", () => {
+    assert.equal(normalizeKana("  ピカチュウ "), "ピカチュウ");
+    assert.equal(normalizeKana("ポリゴン2"), "ポリゴン2");
+  });
+});
+
+describe("U9: searchPokemon（インクリメンタルサーチ）", () => {
+  test("ひらがな入力で一致し、先頭は完全一致（前方一致優先）", () => {
+    const { hits } = searchPokemon(pokemon, "りざーどん");
+    assert.equal(hits[0].name, "リザードン");
+  });
+
+  test("前方一致が部分一致より先に並ぶ（ラッタ→コラッタより先）", () => {
+    const { hits } = searchPokemon(pokemon, "らった");
+    assert.equal(hits[0].name, "ラッタ");
+    assert.ok(hits.some((p) => p.name === "コラッタ"));
+  });
+
+  test("部分一致でヒットする", () => {
+    const { hits } = searchPokemon(pokemon, "ざーど");
+    assert.ok(hits.some((p) => p.name === "リザードン"));
+  });
+
+  test("空文字・空白のみは0件（overflowもfalse）", () => {
+    assert.deepEqual(searchPokemon(pokemon, ""), { hits: [], overflow: false });
+    assert.deepEqual(searchPokemon(pokemon, "  "), { hits: [], overflow: false });
+  });
+
+  test("該当なしは0件", () => {
+    assert.deepEqual(searchPokemon(pokemon, "あいうえおかきくけこ").hits, []);
+  });
+
+  test("上限件数を超える場合は20件に制限され、overflowがtrueになる", () => {
+    const result = searchPokemon(pokemon, "ー"); // 長音を含む名前は多数ある
+    assert.equal(result.hits.length, 20);
+    assert.equal(result.overflow, true);
   });
 });

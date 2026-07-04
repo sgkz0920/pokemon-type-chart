@@ -2,8 +2,9 @@
 作成日: 2026-07-04
 処理名称: ポケモンタイプ相性チェッカー E2E検証スクリプト
 処理概要: Playwright（_electron）でElectronアプリを実起動し、追加設計書
-          （Electron移行・UI改善）9.2章 E1〜E5、および追加設計書（モバイルUI
-          改善・不具合修正）4章 E6〜E9・6.4章 E10 を検証する。あわせてREADME用の
+          （Electron移行・UI改善）9.2章 E1〜E5、追加設計書（モバイルUI改善・
+          不具合修正）4章 E6〜E9・6.4章 E10、および追加設計書（ポケモン名検索）
+          6.2章 E11〜E12 を検証する。あわせてREADME用の
           スクリーンショット（ライト／ダーク／モバイル幅）を取得する。
           実行方法: npm run test:e2e
 ファイル名: e2e.mjs
@@ -91,6 +92,42 @@ await typeBtn(page, "みず").click();
 await typeBtn(page, "みず").click();
 assert.equal(await page.locator(".type-btn.selected").count(), 1);
 ok("E5: 単タイプ再クリックは解除されず、2タイプ時の解除は従来どおり");
+
+/* ---- E11: タブ切替（選択状態は維持される） ---- */
+// E5終了時点の選択: ほのお（1タイプ）
+await page.locator("#tab-pokemon").click();
+assert.ok(await page.locator("#pokemon-tab-body").isVisible());
+assert.ok(await page.locator("#type-tab-body").isHidden());
+assert.ok((await page.locator("#status-slots").innerText()).includes("ほのお"));
+await page.locator("#tab-type").click();
+assert.ok(await page.locator("#type-tab-body").isVisible());
+assert.ok(await page.locator("#pokemon-tab-body").isHidden());
+assert.equal(await page.locator(".type-btn.selected").count(), 1);
+await page.locator("#tab-pokemon").click();
+ok("E11: タブ切替で表示が入れ替わり、選択中のタイプは維持される");
+
+/* ---- E12: ポケモン名検索（ひらがな→候補→タイプ設定） ---- */
+await page.locator("#pokemon-search").fill("りざーどん");
+const firstItem = page.locator(".pokemon-item").first();
+assert.ok((await firstItem.innerText()).includes("リザードン"));
+await firstItem.click();
+const slots = await page.locator("#status-slots").innerText();
+assert.ok(slots.includes("ほのお") && slots.includes("ひこう"));
+assert.equal(
+  await page.locator(".result-group h3").first().innerText(),
+  "4倍（こうかばつぐん）"
+);
+assert.equal(
+  await page.locator(".result-group").first().locator(".type-badge").innerText(),
+  "いわ"
+);
+// 選択した候補はハイライトされる
+assert.ok(await firstItem.evaluate((el) => el.classList.contains("selected")));
+// 以降の検証はタイプ選択タブで行うため戻し、クリアで検索状態もリセットする
+await page.locator("#tab-type").click();
+await page.locator("#clear-btn").click();
+assert.equal(await page.locator("#pokemon-search").inputValue(), "");
+ok("E12: ひらがな検索でリザードンを選択でき、ほのお×ひこう・いわ4倍が表示される");
 
 /* ---- E3: ダークモード切替 ---- */
 const initialTheme = await page.evaluate(() => document.documentElement.dataset.theme);
