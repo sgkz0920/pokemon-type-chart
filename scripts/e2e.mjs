@@ -3,7 +3,7 @@
 処理名称: ポケモンタイプ相性チェッカー E2E検証スクリプト
 処理概要: Playwright（_electron）でElectronアプリを実起動し、追加設計書
           （Electron移行・UI改善）9.2章 E1〜E5、および追加設計書（モバイルUI
-          改善・不具合修正）4章 E6〜E9 を検証する。あわせてREADME用の
+          改善・不具合修正）4章 E6〜E9・6.4章 E10 を検証する。あわせてREADME用の
           スクリーンショット（ライト／ダーク／モバイル幅）を取得する。
           実行方法: npm run test:e2e
 ファイル名: e2e.mjs
@@ -203,6 +203,23 @@ await page.evaluate(() => {
 await page.waitForTimeout(900);
 assert.ok(await statusVisible(), "クリア直後の再選択で選択中エリアへスクロールしていない");
 ok("E9: クリア直後（スクロール中）の再選択でも選択中エリアへスクロールする");
+
+/* ---- E10: クリア後はページ最上部へ戻り、再選択でスクロールする（F-15回帰） ---- */
+await page.locator("#clear-btn").click();
+await page.waitForTimeout(700); // スムーズスクロールの完了待ち
+assert.equal(
+  await page.evaluate(() => window.scrollY),
+  0,
+  "クリア後にページ最上部へ戻っていない"
+);
+await typeBtn(page, "みず").click();
+await typeBtn(page, "じめん").click();
+await page.waitForTimeout(700);
+assert.ok(
+  await statusVisible(),
+  "クリア（最上部）からの再選択で選択中エリアへスクロールしていない"
+);
+ok("E10: クリア後はページ最上部へ戻り、そこからの再選択でスクロールする");
 
 /* ---- スクリーンショット（README用: モバイル幅・ライト） ---- */
 await app.evaluate(({ BrowserWindow }) => {
