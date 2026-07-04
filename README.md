@@ -18,6 +18,7 @@
 ## 主な機能
 
 - **タイプ選択**: 18タイプから最大2つ選択（複合タイプ対応）。3つ目を選ぶと古い方が自動で外れます
+- **ポケモン名で検索**: タブを切り替えてポケモン名（ひらがな可・部分一致）で検索し、候補を選ぶとそのポケモンのタイプが自動設定されます。全国図鑑1025種（基本フォルム）収録
 - **相性計算**: 第6世代以降のタイプ相性表に準拠（はがねに対するあく・ゴースト等倍など）
 - **特性補正**: 「ふゆう」「あついしぼう」「フィルター」「ふしぎなまもり」など、技のタイプに作用する防御側特性16種に対応
 - **倍率別表示**: 計算結果を倍率ごとにグルーピングし、タイプごとのイメージカラーで表示。特性補正で生じる3倍・1.5倍・0.625倍などの中間倍率にも対応
@@ -53,7 +54,8 @@ pokemon/
 ├── index.html                   # ルートURL用リダイレクトページ（GitHub Pages）
 ├── data/
 │   ├── types.json               # タイプ定義＋18×18タイプ相性表
-│   └── abilities.json           # 特性定義（宣言的ルール）
+│   ├── abilities.json           # 特性定義（宣言的ルール）
+│   └── pokemon.json             # ポケモンデータ（全国図鑑・基本フォルム1025種）
 ├── src/
 │   ├── main/
 │   │   ├── main.js              # Electronメインプロセス（ウィンドウ生成・データ提供IPC）
@@ -66,7 +68,8 @@ pokemon/
 ├── test/
 │   └── logic.test.mjs           # 単体テスト（node --test）
 ├── scripts/
-│   └── e2e.mjs                  # E2E検証（Playwright + Electron実起動）
+│   ├── e2e.mjs                  # E2E検証（Playwright + Electron実起動）
+│   └── generate-pokemon-json.mjs # pokemon.json生成（PokeAPIから取得）
 └── doc/                         # 要求仕様書・設計書一式
 ```
 
@@ -74,7 +77,7 @@ pokemon/
 
 - **Electron + HTML / CSS / JavaScript（Vanilla、ESモジュール）** — UIフレームワーク・ビルド工程なし
 - **セキュリティ**: `contextIsolation` / `sandbox` 有効、`nodeIntegration` 無効。データはpreloadの `contextBridge` 経由でIPC受け渡し
-- **データ分離**: タイプ相性（[data/types.json](data/types.json)）と特性（[data/abilities.json](data/abilities.json)）を別JSONで管理。特性の追加はJSONへの1エントリ追加で完結
+- **データ分離**: タイプ相性（[data/types.json](data/types.json)）・特性（[data/abilities.json](data/abilities.json)）・ポケモン（[data/pokemon.json](data/pokemon.json)）を別JSONで管理。特性の追加はJSONへの1エントリ追加で完結。ポケモンデータは [PokeAPI](https://pokeapi.co/) から生成スクリプトで更新可能
 - **アーキテクチャ**: データ層（JSON）／ロジック層（純粋関数 [logic.js](src/renderer/logic.js)）／表示層（[app.js](src/renderer/app.js)）の3層構成。状態変更のたびに全再描画する単方向データフロー
 - **ブラウザ互換**: レンダラーはElectron APIに直接依存せず、`window.pokeApi`（Electron）がなければ `fetch`（ブラウザ）でJSONを読む2段構え。GitHub Pagesでも同一コードが動作
 - **テーマ**: 全配色をCSSカスタムプロパティ化し、`data-theme` 属性で切り替え。`localStorage` に永続化
@@ -92,7 +95,7 @@ pokemon/
 
 | バージョン | 内容 | 参照 |
 |---|---|---|
-| ver2（現行） | Electron化、データのJSON分離、ダークモード、スマホ操作性改善 | `main` |
+| ver2（現行） | Electron化、データのJSON分離、ダークモード、スマホ操作性改善、ポケモン名検索 | `main` |
 | ver1 | 単一HTMLファイル版（サーバ・外部ライブラリ不使用） | タグ [`v1.0`](../../tree/v1.0) / ブランチ [`ver1`](../../tree/ver1) |
 
 ## 将来の拡張候補
