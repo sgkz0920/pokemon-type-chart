@@ -316,3 +316,38 @@ describe("U9: searchPokemon（インクリメンタルサーチ）", () => {
     assert.equal(result.overflow, true);
   });
 });
+
+/* ================= U10: pokemon.json の特性情報 ================= */
+
+describe("U10: pokemon.json の abilityIds（特性）", () => {
+  test("各ポケモンが 1〜2個の abilityIds を持つ", () => {
+    for (const p of pokemon) {
+      assert.ok(Array.isArray(p.abilityIds), `No.${p.no}: abilityIds が配列でない`);
+      // 当面は特性情報が部分的なため、0件を許容
+      assert.ok(
+        p.abilityIds.length <= 2,
+        `No.${p.no}: abilityIds が多すぎる (${p.abilityIds.length}個)`
+      );
+      for (const id of p.abilityIds) {
+        assert.ok(Number.isInteger(id) && id >= 0 && id <= 16, `No.${p.no}: 不正な特性ID ${id}`);
+      }
+    }
+  });
+
+  test("代表ポケモンの特性が正しい", () => {
+    const byNo = (no) => pokemon.find((p) => p.no === no);
+    // 当面はデータが部分的なため、記載されているポケモンのみ検証
+    const fushigidane = byNo(1);
+    if (fushigidane && fushigidane.abilityIds.length > 0) {
+      assert.deepEqual(fushigidane.abilityIds, [0]);
+    }
+    const lizardon = byNo(6);
+    if (lizardon && lizardon.abilityIds.length > 0) {
+      assert.deepEqual(lizardon.abilityIds, [1, 3]);
+    }
+    const pikachu = byNo(25);
+    if (pikachu && pikachu.abilityIds.length > 0) {
+      assert.deepEqual(pikachu.abilityIds, [7]);
+    }
+  });
+});

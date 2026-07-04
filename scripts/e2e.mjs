@@ -3,8 +3,8 @@
 処理名称: ポケモンタイプ相性チェッカー E2E検証スクリプト
 処理概要: Playwright（_electron）でElectronアプリを実起動し、追加設計書
           （Electron移行・UI改善）9.2章 E1〜E5、追加設計書（モバイルUI改善・
-          不具合修正）4章 E6〜E9・6.4章 E10、および追加設計書（ポケモン名検索）
-          6.2章 E11〜E12 を検証する。あわせてREADME用の
+          不具合修正）4章 E6〜E9・6.4章 E10、追加設計書（ポケモン名検索）6.2章 E11〜E12、
+          および追加設計書（ポケモン特性）5.2章 E13〜E14 を検証する。あわせてREADME用の
           スクリーンショット（ライト／ダーク／モバイル幅）を取得する。
           実行方法: npm run test:e2e
 ファイル名: e2e.mjs
@@ -128,6 +128,43 @@ await page.locator("#tab-type").click();
 await page.locator("#clear-btn").click();
 assert.equal(await page.locator("#pokemon-search").inputValue(), "");
 ok("E12: ひらがな検索でリザードンを選択でき、ほのお×ひこう・いわ4倍が表示される");
+
+/* ---- E13: ピカチュウ選択（特性1つ）で「ちくでん」のみ表示 ---- */
+await page.locator("#tab-pokemon").click(); // ポケモン検索タブに切り替え
+await page.locator("#pokemon-search").fill("ぴか");
+await page.waitForTimeout(200);
+const pikaItem = page.locator(".pokemon-item").first();
+await pikaItem.click();
+await page.waitForTimeout(300);
+const pikaOptions = await page.locator("#ability-select option");
+const pikaOptionCount = await pikaOptions.count();
+assert.equal(pikaOptionCount, 1, "ピカチュウ選択時に「ちくでん」のみ表示されるべき");
+const pikaAbility = await page.locator("#ability-select").inputValue();
+assert.equal(pikaAbility, "volt-absorb"); // ちくでんのID
+ok("E13: ピカチュウ選択で特性が「ちくでん」のみになり、「特性なし」は表示されない");
+
+/* ---- E14: リザードン選択（特性2つ）で「もうか」「サンパワー」表示、タブ戻しで全特性復帰 ---- */
+await page.locator("#pokemon-search").clear();
+await page.locator("#pokemon-search").fill("りざーどん"); // 完全名で一意に特定
+await page.waitForTimeout(200);
+const lizarItem = page.locator(".pokemon-item").first();
+await lizarItem.click();
+await page.waitForTimeout(300);
+const lizarOptions = await page.locator("#ability-select option");
+const lizarOptionCount = await lizarOptions.count();
+assert.equal(lizarOptionCount, 2, "リザードン選択時に「もうか」「サンパワー」のみ表示されるべき");
+// タイプで選択タブに戻り、タイプボタンをクリック（選択状態をリセット）
+await page.locator("#tab-type").click();
+await page.waitForTimeout(200);
+await typeBtn(page, "ノーマル").click(); // タイプボタンをクリック→updateAbilityOptions([])が呼ばれる
+await page.waitForTimeout(300);
+const allOptions = await page.locator("#ability-select option");
+const allOptionCount = await allOptions.count();
+assert.ok(
+  allOptionCount >= 16,
+  `タイプボタン選択で全特性が表示されるべき（「特性なし」含む）が、実際は ${allOptionCount}個`
+);
+ok("E14: リザードン選択で「もうか」「サンパワー」のみ、タイプ選択に戻すと全特性が復帰");
 
 /* ---- E3: ダークモード切替 ---- */
 const initialTheme = await page.evaluate(() => document.documentElement.dataset.theme);
