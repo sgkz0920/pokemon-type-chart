@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!--
+作成日: 2026-07-04
+処理名称: ルートリダイレクトページ
+処理概要: サイトルートへのアクセスを本体（src/pokemon_type_chart.html）へ転送する。
+          本体を単一ソースに保つため、コピーではなくリダイレクトとする。
+ファイル名: index.html
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="refresh" content="0; url=./src/pokemon_type_chart.html">
+<title>ポケモンタイプ相性チェッカー</title>
+<script>location.replace("./src/pokemon_type_chart.html");</script>
+</head>
+<body>
+<p><a href="./src/pokemon_type_chart.html">ポケモンタイプ相性チェッカーへ移動</a></p>
+</body>
+</html>
