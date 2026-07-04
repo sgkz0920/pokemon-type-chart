@@ -2,7 +2,8 @@
 作成日: 2026-07-04
 処理名称: ポケモンタイプ相性チェッカー E2E検証スクリプト
 処理概要: Playwright（_electron）でElectronアプリを実起動し、追加設計書
-          （Electron移行・UI改善）9.2章 E1〜E5 を検証する。あわせてREADME用の
+          （Electron移行・UI改善）9.2章 E1〜E5、および追加設計書（モバイルUI
+          改善・不具合修正）4章 E6〜E9 を検証する。あわせてREADME用の
           スクリーンショット（ライト／ダーク／モバイル幅）を取得する。
           実行方法: npm run test:e2e
 ファイル名: e2e.mjs
@@ -113,16 +114,106 @@ assert.equal(
 );
 ok("E3: テーマ切替が動作し、再起動後もダークモードが維持される");
 
-/* ---- スクリーンショット（README用: モバイル幅・ライト） ---- */
 await page.locator("#theme-toggle").click(); // ライトに戻す（次回起動もライト）
+
+/* ---- F-12: ズーム抑止のviewport設定 ---- */
+const viewport = await page.evaluate(
+  () => document.querySelector('meta[name="viewport"]').content
+);
+assert.ok(viewport.includes("maximum-scale=1.0"));
+assert.ok(viewport.includes("user-scalable=no"));
+ok("F-12: viewport metaでズーム抑止が指定されている");
+
+/* ---- E6: テーマ切替ボタンの配置（デスクトップ=fixed） ---- */
+assert.equal(
+  await page.evaluate(
+    () => getComputedStyle(document.getElementById("theme-toggle")).position
+  ),
+  "fixed"
+);
+
+/* ---- モバイル幅（390×844）に変更 ---- */
 await app.evaluate(({ BrowserWindow }) => {
   const win = BrowserWindow.getAllWindows()[0];
   win.setSize(390, 844);
 });
+await page.waitForTimeout(200); // リサイズ反映待ち
+
+/* ---- E6: テーマ切替ボタンの配置（モバイル=ページ最上部固定） ---- */
+assert.equal(
+  await page.evaluate(
+    () => getComputedStyle(document.getElementById("theme-toggle")).position
+  ),
+  "absolute"
+);
+// スクロールするとボタンはページと一緒に画面外へ流れる
+const toggleTopWhenScrolled = await page.evaluate(() => {
+  window.scrollTo(0, 300);
+  const top = document.getElementById("theme-toggle").getBoundingClientRect().top;
+  window.scrollTo(0, 0);
+  return top;
+});
+assert.ok(toggleTopWhenScrolled < 0);
+ok("E6: テーマ切替ボタンはデスクトップで画面追随、モバイルでページ最上部固定");
+
+/* ---- E7: 見出しの1行表示（はみ出しなし） ---- */
+const h1Fits = await page.evaluate(() => {
+  const h1 = document.querySelector("header h1");
+  return h1.scrollWidth <= h1.clientWidth;
+});
+assert.ok(h1Fits, "見出しがモバイル幅で折り返しまたははみ出している");
+ok("E7: 見出し「ポケモンタイプ相性チェッカー」がモバイル幅でも1行に収まる");
+
+/* ---- E8: 説明文の2行表示 ---- */
+assert.equal(await page.locator(".desc-line").count(), 2);
+const descFits = await page.evaluate(() =>
+  [...document.querySelectorAll(".desc-line")].every(
+    (el) => el.scrollWidth <= el.clientWidth
+  )
+);
+assert.ok(descFits, "説明文がモバイル幅ではみ出している");
+ok("E8: 説明文が2行固定で表示され、モバイル幅でも各行が収まる");
+
+/* ---- E9: クリア直後の再選択でもスクロールする（F-11回帰） ---- */
+// 実機ではブラウザUIの分ビューポートが低く、上部スクロール後に
+// 「選択中のタイプ」エリアが画面外に出る。その条件を再現するため縦を縮める
+await app.evaluate(({ BrowserWindow }) => {
+  BrowserWindow.getAllWindows()[0].setSize(390, 600);
+});
+await page.waitForTimeout(200);
+const statusVisible = () =>
+  page.evaluate(() => {
+    const rect = document.getElementById("status-panel").getBoundingClientRect();
+    return rect.top >= 0 && rect.bottom <= window.innerHeight;
+  });
+await typeBtn(page, "みず").click();
+await typeBtn(page, "じめん").click();
+await page.waitForTimeout(700); // スムーズスクロールの完了待ち
+assert.ok(await statusVisible(), "2タイプ選択で選択中エリアへスクロールしていない");
+// クリア（上部へのスクロールアニメーション開始直後）に間髪入れず再選択する。
+// 実機での素早いタップを再現するため、同一タスク内で連続してクリックする
+await page.evaluate(() => {
+  document.getElementById("clear-btn").click();
+  const fire = [...document.querySelectorAll(".type-btn")].find(
+    (b) => b.textContent === "ほのお"
+  );
+  fire.click();
+  fire.click(); // 単タイプ確定
+});
+await page.waitForTimeout(900);
+assert.ok(await statusVisible(), "クリア直後の再選択で選択中エリアへスクロールしていない");
+ok("E9: クリア直後（スクロール中）の再選択でも選択中エリアへスクロールする");
+
+/* ---- スクリーンショット（README用: モバイル幅・ライト） ---- */
+await app.evaluate(({ BrowserWindow }) => {
+  BrowserWindow.getAllWindows()[0].setSize(390, 844);
+});
+await page.locator("#clear-btn").click();
+await page.waitForTimeout(700);
 await typeBtn(page, "みず").click();
 await typeBtn(page, "じめん").click();
 await page.locator("#ability-select").selectOption("water-absorb");
-await page.waitForTimeout(600); // スムーズスクロールの完了待ち
+await page.waitForTimeout(700); // スムーズスクロールの完了待ち
 await page.screenshot({ path: path.join(shotDir, "screenshot_mobile.png") });
 ok("スクリーンショット3点（ライト／ダーク／モバイル幅）を取得");
 
