@@ -128,6 +128,7 @@ function scrollToPanelIfNeeded(panel) {
 //   選択中タイプ（選択数1）→ 単タイプ確定として扱い、ステータスへスクロール（S2）
 function toggleType(typeId) {
   selectedPokemonNo = null; // 手動でタイプを変更したらポケモン選択は解除
+  updateAbilityOptions([]); // 特性セレクトを全特性に復帰（F-22）
   const index = selectedTypes.indexOf(typeId);
   if (index !== -1) {
     if (selectedTypes.length === 1) {
@@ -157,11 +158,51 @@ function switchTab(tab) {
 }
 
 // 検索候補の選択（F-16）: ポケモンのタイプを防御側タイプに設定（既存選択は置換）
+// 同時に、特性セレクトをそのポケモンが持つ特性のみに絞り込む（F-20）
 function selectPokemon(p) {
   selectedPokemonNo = p.no;
   selectedTypes = [...p.types];
+  updateAbilityOptions(p.abilityIds || []);
   renderAll();
   scrollToPanelIfNeeded(statusPanel);
+}
+
+// 特性セレクトを動的に更新（F-20〜F-22）
+// abilityIds: 表示対象とする特性ID配列。空配列の場合は全特性に復帰
+function updateAbilityOptions(abilityIds) {
+  const allAbilities = data.abilities;
+  const isRestricted = abilityIds.length > 0; // ポケモン選択状態か
+
+  if (isRestricted) {
+    // ポケモン選択時: そのポケモンが持つ特性のみ表示
+    abilitySelect.innerHTML = "";
+    for (const id of abilityIds) {
+      const ability = allAbilities[id];
+      const opt = document.createElement("option");
+      opt.value = ability.id;
+      opt.textContent = ability.name;
+      abilitySelect.appendChild(opt);
+    }
+    // 1つのみの場合、それを選択状態に（特性なしは表示しない）
+    if (abilityIds.length === 1) {
+      selectedAbilityId = allAbilities[abilityIds[0]].id;
+      abilitySelect.value = selectedAbilityId;
+    } else {
+      // 2つの場合、最初の1つを選択
+      selectedAbilityId = allAbilities[abilityIds[0]].id;
+      abilitySelect.value = selectedAbilityId;
+    }
+  } else {
+    // タイプ選択状態: 全特性から選択可能（初期化と同じ）
+    abilitySelect.innerHTML = "";
+    for (const ability of allAbilities) {
+      const opt = document.createElement("option");
+      opt.value = ability.id;
+      opt.textContent = ability.name;
+      abilitySelect.appendChild(opt);
+    }
+    abilitySelect.value = selectedAbilityId;
+  }
 }
 
 // 選択クリア（F-05）: タイプと特性をリセットし、ページ最上部へスクロール（S3・F-15）
@@ -172,6 +213,7 @@ function clearSelection() {
   selectedAbilityId = "none";
   selectedPokemonNo = null;
   pokemonSearch.value = "";
+  updateAbilityOptions([]); // 特性セレクトを全特性に復帰
   renderAll();
   if (window.scrollY > 0) {
     pendingScrollPanel = typePanel; // 割り込み判定用（最上部＝タイプ選択エリア扱い）
@@ -197,12 +239,8 @@ function buildTypePanel() {
 
 // 特性ドロップダウンの初期生成（初回のみ）
 function buildAbilitySelect() {
-  for (const ability of data.abilities) {
-    const opt = document.createElement("option");
-    opt.value = ability.id;
-    opt.textContent = ability.name;
-    abilitySelect.appendChild(opt);
-  }
+  // 初期状態は全特性を表示
+  updateAbilityOptions([]);
   abilitySelect.addEventListener("change", () => {
     selectedAbilityId = abilitySelect.value;
     renderAll();
